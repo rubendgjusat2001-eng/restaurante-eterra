@@ -5,7 +5,7 @@
 -- 1. Habilitar extensiones necesarias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. TABLA: RESTAURANTES (MULTI-TENANT)
+-- 2. TABLA: RESTAURANTES (MULTI-TENANT & THEMING CLOUD)
 CREATE TABLE IF NOT EXISTS public.restaurants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug TEXT UNIQUE NOT NULL,
@@ -16,7 +16,13 @@ CREATE TABLE IF NOT EXISTS public.restaurants (
     phone TEXT,
     whatsapp TEXT,
     address TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    city TEXT DEFAULT 'Lima, Perú',
+    currency TEXT DEFAULT 'PEN',
+    theme_preset TEXT DEFAULT 'marisqueria',
+    custom_theme JSONB,
+    owner_password TEXT DEFAULT 'Admin2026!*',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 3. TABLA: PERSONAL / STAFF
@@ -60,10 +66,14 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
     name TEXT NOT NULL,
     description TEXT,
     price NUMERIC(10, 2) NOT NULL,
+    cost_price NUMERIC(10, 2),
     image_url TEXT,
     station TEXT NOT NULL,
     is_available BOOLEAN DEFAULT true,
     is_featured BOOLEAN DEFAULT false,
+    preparation_minutes INT DEFAULT 12,
+    tags TEXT[],
+    modifier_groups JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -119,7 +129,27 @@ CREATE TABLE IF NOT EXISTS public.cash_shifts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 8. HABILITAR PUBLICACIÓN EN TIEMPO REAL (WEBSOCKETS)
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tables;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_items;
+-- 8. HABILITAR PUBLICACIÓN EN TIEMPO REAL (WEBSOCKETS) PARA TODOS LOS DISPOSITIVOS
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurants;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.staff_users;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.tables;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_items;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;

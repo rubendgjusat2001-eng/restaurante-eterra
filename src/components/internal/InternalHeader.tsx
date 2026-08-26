@@ -9,9 +9,8 @@ import {
   Volume2, 
   VolumeX, 
   LogOut, 
-  Wifi,
-  Coins,
-  ChevronRight
+  Coins, 
+  ChevronRight 
 } from 'lucide-react';
 import { sounds, formatMoney } from '@/lib/utils';
 
@@ -31,11 +30,14 @@ export function InternalHeader({
   const { 
     restaurant, 
     currentUser, 
+    currentThemeColors,
     logoutStaff, 
     activeShift, 
     soundEnabled, 
     setSoundEnabled 
   } = useRestaurant();
+
+  const primaryColor = currentThemeColors.primary || '#0284c7';
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -50,6 +52,9 @@ export function InternalHeader({
       case 'kitchen': return 'KDS Pantalla de Cocina & Bar';
       case 'cashier': return 'Caja, Facturación & Cobros';
       case 'owner': return 'Dashboard de Administración & KPIs';
+      case 'staff': return 'Personal & Gestión de Roles';
+      case 'dishes': return 'Carta & Platos Gastronómicos';
+      case 'settings': return 'Configuración General';
       default: return 'Sistema Gastronómico';
     }
   };
@@ -67,7 +72,7 @@ export function InternalHeader({
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs border border-slate-200"
           title="Abrir Menú de Navegación"
         >
-          <Menu className="w-4 h-4 text-cyan-700" />
+          <Menu className="w-4 h-4" style={{ color: primaryColor }} />
           <span className="hidden sm:inline">Menú</span>
         </button>
 
@@ -116,7 +121,7 @@ export function InternalHeader({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
             title="Configuración General"
           >
-            <Settings className="w-3.5 h-3.5 text-cyan-700" />
+            <Settings className="w-3.5 h-3.5" style={{ color: primaryColor }} />
             <span className="hidden sm:inline">Ajustes</span>
           </button>
         )}
@@ -126,7 +131,7 @@ export function InternalHeader({
           onClick={toggleSound}
           className={`p-2 rounded-xl border transition-colors cursor-pointer ${
             soundEnabled 
-              ? 'bg-slate-100 border-slate-200 text-cyan-700 hover:bg-slate-200' 
+              ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
               : 'bg-rose-50 border-rose-200 text-rose-600'
           }`}
           title={soundEnabled ? 'Sonidos Activados' : 'Sonidos Silenciados'}
@@ -143,7 +148,10 @@ export function InternalHeader({
                 <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[90px]">
                   {currentUser.name.split(' ')[0]}
                 </p>
-                <p className="text-[9px] uppercase tracking-wider text-cyan-700 font-bold">
+                <p 
+                  style={{ color: primaryColor }}
+                  className="text-[9px] uppercase tracking-wider font-bold"
+                >
                   {currentUser.role === 'owner' ? 'Owner' : currentUser.role}
                 </p>
               </div>

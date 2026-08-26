@@ -439,9 +439,52 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
     let isMounted = true;
 
-    // 1. Cargar o Sembrar Mesas, Órdenes y Menú en la Nube
+    // 1. Cargar o Sembrar Mesas, Órdenes, Menú, Personal y Configuración en la Nube
     async function syncCloudData() {
       try {
+        // Cargar Configuración del Restaurante y Tema Activo
+        const { data: cloudRest, error: restErr } = await supabase!.from('restaurants').select('*').limit(1).maybeSingle();
+        if (!restErr && cloudRest && isMounted) {
+          const mappedRest: RestaurantInfo = {
+            ...INITIAL_RESTAURANT,
+            name: cloudRest.name || INITIAL_RESTAURANT.name,
+            slogan: cloudRest.slogan || INITIAL_RESTAURANT.slogan,
+            story: cloudRest.story || INITIAL_RESTAURANT.story,
+            phone: cloudRest.phone || INITIAL_RESTAURANT.phone,
+            whatsapp: cloudRest.whatsapp || INITIAL_RESTAURANT.whatsapp,
+            address: cloudRest.address || INITIAL_RESTAURANT.address,
+            city: cloudRest.city || INITIAL_RESTAURANT.city,
+            currency: cloudRest.currency || INITIAL_RESTAURANT.currency,
+            themePreset: (cloudRest.theme_preset as GastroThemePreset) || INITIAL_RESTAURANT.themePreset,
+            customTheme: cloudRest.custom_theme || INITIAL_RESTAURANT.customTheme,
+          };
+          setRestaurant(mappedRest);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('eterra_restaurant_info', JSON.stringify(mappedRest));
+          }
+          if (cloudRest.owner_password) {
+            setOwnerPassword(cloudRest.owner_password);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('eterra_owner_password', cloudRest.owner_password);
+            }
+          }
+        }
+
+        // Cargar Staff de la Nube
+        const { data: cloudStaff, error: staffErr } = await supabase!.from('staff_users').select('*');
+        if (!staffErr && cloudStaff && cloudStaff.length > 0 && isMounted) {
+          const mappedStaff: StaffUser[] = cloudStaff.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role,
+            pin: u.pin,
+            avatar: u.avatar || '👤',
+            color: 'from-slate-600 to-slate-800',
+            active: true
+          }));
+          setStaff(mappedStaff);
+        }
+
         // Cargar Mesas
         const { data: cloudTables, error: tableErr } = await supabase!.from('tables').select('*');
         if (!tableErr && cloudTables && isMounted) {
@@ -526,7 +569,67 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
     syncCloudData();
 
-    // 2. Suscripción en Tiempo Real Global (WebSockets para Mesas y Órdenes)
+    // 2. Suscripciones en Tiempo Real Global (WebSockets para Sincronización Multi-Dispositivo)
+    const restChannel = supabase
+      .channel('realtime_restaurant_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurants' },
+        (payload) => {
+          if (payload.new) {
+            const nr = payload.new as any;
+            setRestaurant(prev => ({
+              ...prev,
+              name: nr.name || prev.name,
+              slogan: nr.slogan || prev.slogan,
+              story: nr.story || prev.story,
+              phone: nr.phone || prev.phone,
+              whatsapp: nr.whatsapp || prev.whatsapp,
+              address: nr.address || prev.address,
+              city: nr.city || prev.city,
+              currency: nr.currency || prev.currency,
+              themePreset: (nr.theme_preset as GastroThemePreset) || prev.themePreset,
+              customTheme: nr.custom_theme || prev.customTheme,
+            }));
+            if (nr.owner_password) {
+              setOwnerPassword(nr.owner_password);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('eterra_owner_password', nr.owner_password);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    const staffChannel = supabase
+      .channel('realtime_staff_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'staff_users' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const nu = payload.new as any;
+            setStaff(prev => prev.some(u => u.id === nu.id) ? prev : [...prev, {
+              id: nu.id,
+              name: nu.name,
+              role: nu.role,
+              pin: nu.pin,
+              avatar: nu.avatar || '👤',
+              color: 'from-slate-600 to-slate-800',
+              active: true
+            }]);
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            const nu = payload.new as any;
+            setStaff(prev => prev.map(u => u.id === nu.id ? { ...u, name: nu.name, role: nu.role, pin: nu.pin } : u));
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            const ou = payload.old as any;
+            setStaff(prev => prev.filter(u => u.id !== ou.id));
+          }
+        }
+      )
+      .subscribe();
+
     const tablesChannel = supabase
       .channel('realtime_tables_channel')
       .on(
@@ -629,6 +732,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      supabase?.removeChannel(restChannel);
+      supabase?.removeChannel(staffChannel);
       supabase?.removeChannel(tablesChannel);
       supabase?.removeChannel(ordersChannel);
     };
@@ -637,18 +742,67 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   // Métodos de Configuración y Tema
   const setThemePreset = (preset: GastroThemePreset) => {
     sounds.playClick();
-    setRestaurant(prev => ({ ...prev, themePreset: preset }));
+    setRestaurant(prev => {
+      const updated = { ...prev, themePreset: preset };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('eterra_restaurant_info', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (supabase) {
+      supabase.from('restaurants').upsert({
+        slug: 'eterra-peru',
+        name: restaurant.name,
+        theme_preset: preset,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'slug' }).then();
+    }
     showToast('success', `Estilo visual cambiado a: ${GASTRO_THEMES[preset].name}`);
   };
 
   const updateCustomTheme = (colors: ThemeColors) => {
-    setRestaurant(prev => ({ ...prev, themePreset: 'custom', customTheme: colors }));
+    setRestaurant(prev => {
+      const updated: RestaurantInfo = { ...prev, themePreset: 'custom' as GastroThemePreset, customTheme: colors };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('eterra_restaurant_info', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (supabase) {
+      supabase.from('restaurants').upsert({
+        slug: 'eterra-peru',
+        name: restaurant.name,
+        theme_preset: 'custom',
+        custom_theme: colors,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'slug' }).then();
+    }
     showToast('success', 'Paleta personalizada aplicada con éxito');
   };
 
   const updateRestaurantInfo = (info: Partial<RestaurantInfo>) => {
-    setRestaurant(prev => ({ ...prev, ...info }));
-    showToast('success', 'Configuración de ÉTERRA actualizada');
+    setRestaurant(prev => {
+      const updated = { ...prev, ...info };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('eterra_restaurant_info', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (supabase) {
+      supabase.from('restaurants').upsert({
+        slug: 'eterra-peru',
+        name: info.name || restaurant.name,
+        slogan: info.slogan,
+        story: info.story,
+        phone: info.phone,
+        whatsapp: info.whatsapp,
+        address: info.address,
+        city: info.city,
+        currency: info.currency,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'slug' }).then();
+    }
+    showToast('success', 'Configuración de ÉTERRA guardada y sincronizada en la nube');
   };
 
   // Credenciales y Seguridad del Propietario (Owner)
@@ -702,8 +856,16 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('eterra_owner_password', newPass);
       sessionStorage.setItem('eterra_owner_password', newPass);
     }
+    if (supabase) {
+      supabase.from('restaurants').upsert({
+        slug: 'eterra-peru',
+        name: restaurant.name,
+        owner_password: newPass,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'slug' }).then();
+    }
     sounds.playClick();
-    showToast('success', 'Contraseña del Propietario actualizada con éxito');
+    showToast('success', 'Contraseña del Propietario actualizada con éxito en la nube');
     addAuditLog('system_action', 'Contraseña maestra de Propietario actualizada');
     return true;
   };
