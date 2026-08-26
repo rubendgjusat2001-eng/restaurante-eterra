@@ -654,7 +654,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   // Credenciales y Seguridad del Propietario (Owner)
   const [ownerPassword, setOwnerPassword] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eterra_owner_password');
+      const saved = localStorage.getItem('eterra_owner_password') || sessionStorage.getItem('eterra_owner_password');
       if (saved) return saved;
     }
     return 'Admin2026!*';
@@ -670,7 +670,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     const cleanPass = pass.trim();
 
     const isMatchUser = cleanId === ownerCredentials.email || cleanId === ownerCredentials.username || cleanId === 'admin';
-    const isMatchPass = cleanPass === ownerPassword || cleanPass === 'Admin2026!*';
+    const isMatchPass = cleanPass === ownerPassword;
 
     if (isMatchUser && isMatchPass) {
       const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
@@ -689,17 +689,18 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   };
 
   const updateOwnerPassword = (currentPass: string, newPass: string): boolean => {
-    if (currentPass !== ownerPassword && currentPass !== 'Admin2026!*') {
+    if (currentPass !== ownerPassword) {
       showToast('error', 'La contraseña actual no es correcta');
       return false;
     }
     if (!newPass || newPass.length < 6) {
-      showToast('error', 'La nueva contraseña debe tener al menos 6 caracteres con letras y números');
+      showToast('error', 'La nueva contraseña debe tener al menos 6 caracteres');
       return false;
     }
     setOwnerPassword(newPass);
     if (typeof window !== 'undefined') {
       localStorage.setItem('eterra_owner_password', newPass);
+      sessionStorage.setItem('eterra_owner_password', newPass);
     }
     sounds.playClick();
     showToast('success', 'Contraseña del Propietario actualizada con éxito');

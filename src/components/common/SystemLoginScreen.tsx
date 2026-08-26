@@ -224,8 +224,9 @@ export function SystemLoginScreen({ onGoToPublic }: SystemLoginScreenProps) {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Clave inicial: <span className="font-mono text-cyan-400 font-bold">Admin2026!*</span> (Modificable en Ajustes)
+                <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                  <span>Acceso cifrado y seguro para la administración del local</span>
                 </p>
               </div>
 
