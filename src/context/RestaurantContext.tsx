@@ -174,8 +174,28 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     return INITIAL_RESTAURANT;
   });
 
+  const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos exactos de inactividad
+
   const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => null); // Inicia bloqueado hasta autenticación
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('eterra_active_session_user');
+        const lastActive = localStorage.getItem('eterra_active_session_last_activity');
+        if (saved && lastActive) {
+          const diff = Date.now() - Number(lastActive);
+          if (diff < INACTIVITY_TIMEOUT_MS) {
+            localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
+            return JSON.parse(saved);
+          } else {
+            localStorage.removeItem('eterra_active_session_user');
+            localStorage.removeItem('eterra_active_session_last_activity');
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
 
@@ -601,6 +621,10 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     if (isMatchUser && isMatchPass) {
       const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
       setCurrentUser(ownerUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('eterra_active_session_user', JSON.stringify(ownerUser));
+        localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
+      }
       setIsPinModalOpen(false);
       sounds.playClick();
       showToast('success', `Bienvenido, ${ownerUser.name}. Sesión de Propietario activa.`, 'Acceso Autorizado');
@@ -640,6 +664,10 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       const match = staff.find(u => u.pin === pin && u.active);
       if (match) {
         setCurrentUser(match);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('eterra_active_session_user', JSON.stringify(match));
+          localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
+        }
         setIsPinModalOpen(false);
         setPendingActionUser(null);
         sounds.playClick();
@@ -649,6 +677,10 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     } else {
       if (userToVerify.pin === pin) {
         setCurrentUser(userToVerify);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('eterra_active_session_user', JSON.stringify(userToVerify));
+          localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
+        }
         setIsPinModalOpen(false);
         setPendingActionUser(null);
         sounds.playClick();
@@ -668,9 +700,42 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
   const logoutStaff = () => {
     setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('eterra_active_session_user');
+      localStorage.removeItem('eterra_active_session_last_activity');
+    }
     sounds.playClick();
     showToast('info', 'Sesión de personal cerrada');
   };
+
+  // Monitoreo de actividad e inactividad de 15 minutos en el dispositivo
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentUser) return;
+
+    const recordActivity = () => {
+      localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(evt => window.addEventListener(evt, recordActivity, { passive: true }));
+
+    // Verificación periódica cada 10 segundos
+    const interval = setInterval(() => {
+      const lastActive = localStorage.getItem('eterra_active_session_last_activity');
+      if (lastActive) {
+        const diff = Date.now() - Number(lastActive);
+        if (diff >= INACTIVITY_TIMEOUT_MS) {
+          logoutStaff();
+          showToast('warning', 'La sesión se ha cerrado automáticamente tras 15 minutos de inactividad por seguridad.', 'Seguridad de Acceso');
+        }
+      }
+    }, 10000);
+
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, recordActivity));
+      clearInterval(interval);
+    };
+  }, [currentUser]);
 
   const addStaffUser = (newUser: { name: string; role: UserRole; pin: string; avatar?: string }) => {
     const created: StaffUser = {

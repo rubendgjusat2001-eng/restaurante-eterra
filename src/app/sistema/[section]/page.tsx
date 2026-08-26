@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { ToastContainer } from '@/components/common/ToastContainer';
 
@@ -18,6 +18,7 @@ import { DishManagementView } from '@/components/internal/DishManagementView';
 import { SettingsView } from '@/components/internal/SettingsView';
 import { SystemLoginScreen } from '@/components/common/SystemLoginScreen';
 
+// Mapeo entre pestañas internas y paths limpios de URL (/sistema/personal, /sistema/carta, etc.)
 const TAB_TO_PATH: Record<InternalTab, string> = {
   waiter: 'mesas',
   kitchen: 'cocina',
@@ -48,11 +49,19 @@ const PATH_TO_TAB: Record<string, InternalTab> = {
   ajustes: 'settings'
 };
 
-export default function SistemaPrivadoPage() {
+interface PageProps {
+  params: Promise<{ section: string }>;
+}
+
+export default function SistemaSectionPage({ params }: PageProps) {
+  const resolvedParams = use(params);
+  const rawSection = resolvedParams.section?.toLowerCase() || 'mesas';
+  const initialTab = PATH_TO_TAB[rawSection] || 'waiter';
+
   const { currentUser } = useRestaurant();
 
   // Pestaña o Vista activa dentro del ERP interno
-  const [internalTab, setInternalTab] = useState<InternalTab>('waiter');
+  const [internalTab, setInternalTab] = useState<InternalTab>(initialTab);
 
   // Estado del Sidebar / Drawer Desplegable
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -60,25 +69,14 @@ export default function SistemaPrivadoPage() {
   // Modal de Arqueo Físico de Caja
   const [isCashDrawerOpen, setIsCashDrawerOpen] = useState(false);
 
-  // 1. Leer ruta inicial desde el path o query
+  // Sincronizar estado cuando cambie el parámetro de ruta
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const pathParts = window.location.pathname.split('/');
-    const sectionInPath = pathParts[pathParts.length - 1]?.toLowerCase();
-    
-    if (sectionInPath && PATH_TO_TAB[sectionInPath]) {
-      setInternalTab(PATH_TO_TAB[sectionInPath]);
-      return;
+    if (PATH_TO_TAB[rawSection]) {
+      setInternalTab(PATH_TO_TAB[rawSection]);
     }
+  }, [rawSection]);
 
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab')?.toLowerCase();
-    if (tabParam && PATH_TO_TAB[tabParam]) {
-      setInternalTab(PATH_TO_TAB[tabParam]);
-    }
-  }, []);
-
-  // 2. Función para cambiar pestaña y actualizar limpiamente la URL como /sistema/personal, /sistema/carta, etc.
+  // Función para cambiar pestaña y actualizar limpiamente la URL en el navegador (/sistema/personal, etc.)
   const handleTabChange = useCallback((tab: InternalTab) => {
     setInternalTab(tab);
     if (typeof window !== 'undefined') {
@@ -90,7 +88,7 @@ export default function SistemaPrivadoPage() {
     }
   }, []);
 
-  // 3. Soporte para botones Atrás / Adelante del navegador
+  // Soporte para botones Atrás / Adelante del navegador
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handlePopState = () => {
