@@ -47,7 +47,9 @@ export function SystemLoginScreen({ onGoToPublic }: SystemLoginScreenProps) {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  const handleOwnerSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOwnerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setOwnerError(null);
     if (!identifier.trim() || !password.trim()) {
@@ -56,9 +58,16 @@ export function SystemLoginScreen({ onGoToPublic }: SystemLoginScreenProps) {
       return;
     }
 
-    const success = loginWithOwnerPassword(identifier, password);
-    if (!success) {
-      setOwnerError('Credenciales incorrectas. Verifique su usuario o contraseña.');
+    setIsSubmitting(true);
+    try {
+      const success = await loginWithOwnerPassword(identifier, password);
+      if (!success) {
+        setOwnerError('Credenciales incorrectas. Verifique su usuario o contraseña.');
+      }
+    } catch {
+      setOwnerError('Error de conexión. Intente nuevamente.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -232,10 +241,20 @@ export function SystemLoginScreen({ onGoToPublic }: SystemLoginScreenProps) {
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold text-xs shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                disabled={isSubmitting}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
               >
-                <span>Ingresar al Sistema</span>
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Verificando Credenciales...</span>
+                  </span>
+                ) : (
+                  <>
+                    <span>Ingresar al Sistema</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
           )}

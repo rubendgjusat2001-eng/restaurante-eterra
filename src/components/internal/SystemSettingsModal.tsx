@@ -85,14 +85,14 @@ export function SystemSettingsModal({ isOpen, onClose }: SystemSettingsModalProp
     showToast('success', 'Datos del restaurante guardados');
   };
 
-  const handleSavePassword = (e: React.FormEvent) => {
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
       showToast('error', 'La nueva contraseña y la confirmación no coinciden');
       sounds.playAlert();
       return;
     }
-    const success = updateOwnerPassword(currentPass, newPass);
+    const success = await updateOwnerPassword(currentPass, newPass);
     if (success) {
       setCurrentPass('');
       setNewPass('');

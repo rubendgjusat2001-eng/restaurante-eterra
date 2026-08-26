@@ -73,7 +73,7 @@ export function SettingsView() {
     sounds.playClick();
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPass || newPass.length < 6) {
       showToast('error', 'La nueva contraseña debe tener al menos 6 caracteres');
@@ -86,7 +86,7 @@ export function SettingsView() {
       return;
     }
 
-    const ok = updateOwnerPassword(currentPass, newPass);
+    const ok = await updateOwnerPassword(currentPass, newPass);
     if (ok) {
       setCurrentPass('');
       setNewPass('');

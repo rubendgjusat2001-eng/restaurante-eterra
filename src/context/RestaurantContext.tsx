@@ -64,8 +64,8 @@ interface RestaurantContextType {
   currentUser: StaffUser | null;
   isAuthLoaded: boolean;
   ownerCredentials: { email: string; username: string };
-  loginWithOwnerPassword: (identifier: string, pass: string) => boolean;
-  updateOwnerPassword: (currentPass: string, newPass: string) => boolean;
+  loginWithOwnerPassword: (identifier: string, pass: string) => Promise<boolean>;
+  updateOwnerPassword: (currentPass: string, newPass: string) => Promise<boolean>;
   loginWithPin: (pin: string, user?: StaffUser) => boolean;
   switchUser: (user: StaffUser) => void;
   logoutStaff: () => void;
@@ -819,14 +819,37 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     username: 'ruben'
   }), []);
 
-  const loginWithOwnerPassword = (identifier: string, pass: string): boolean => {
+  const loginWithOwnerPassword = async (identifier: string, pass: string): Promise<boolean> => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPass = pass.trim();
 
     const isMatchUser = cleanId === ownerCredentials.email || cleanId === ownerCredentials.username || cleanId === 'admin';
-    const isMatchPass = cleanPass === ownerPassword;
+    if (!isMatchUser) {
+      sounds.playAlert();
+      showToast('error', 'Usuario incorrecto. Verifique sus credenciales.', 'Acceso Denegado');
+      return false;
+    }
 
-    if (isMatchUser && isMatchPass) {
+    // Consultar directamente la contraseña activa en Supabase (Fuente de la verdad)
+    let validPass = ownerPassword;
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data: cloudRest } = await supabase.from('restaurants').select('owner_password').limit(1).maybeSingle();
+        if (cloudRest?.owner_password) {
+          validPass = cloudRest.owner_password;
+          setOwnerPassword(cloudRest.owner_password);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('eterra_owner_password', cloudRest.owner_password);
+          }
+        }
+      } catch (err) {
+        console.warn('Fallback a clave local:', err);
+      }
+    }
+
+    const isMatchPass = cleanPass === validPass;
+
+    if (isMatchPass) {
       const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
       setCurrentUser(ownerUser);
       saveSessionToStorage(ownerUser);
@@ -838,12 +861,23 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     }
 
     sounds.playAlert();
-    showToast('error', 'Usuario o contraseña incorrectos. Verifique sus credenciales.', 'Acceso Denegado');
+    showToast('error', 'Contraseña incorrecta. Verifique sus credenciales.', 'Acceso Denegado');
     return false;
   };
 
-  const updateOwnerPassword = (currentPass: string, newPass: string): boolean => {
-    if (currentPass !== ownerPassword) {
+  const updateOwnerPassword = async (currentPass: string, newPass: string): Promise<boolean> => {
+    // Validar contraseña actual contra la nube
+    let validPass = ownerPassword;
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data: cloudRest } = await supabase.from('restaurants').select('id, owner_password').limit(1).maybeSingle();
+        if (cloudRest?.owner_password) {
+          validPass = cloudRest.owner_password;
+        }
+      } catch {}
+    }
+
+    if (currentPass !== validPass) {
       showToast('error', 'La contraseña actual no es correcta');
       return false;
     }
@@ -851,19 +885,30 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       showToast('error', 'La nueva contraseña debe tener al menos 6 caracteres');
       return false;
     }
+
     setOwnerPassword(newPass);
     if (typeof window !== 'undefined') {
       localStorage.setItem('eterra_owner_password', newPass);
       sessionStorage.setItem('eterra_owner_password', newPass);
     }
+
     if (supabase) {
-      supabase.from('restaurants').upsert({
-        slug: 'eterra-peru',
-        name: restaurant.name,
-        owner_password: newPass,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'slug' }).then();
+      const { data: existing } = await supabase.from('restaurants').select('id').limit(1).maybeSingle();
+      if (existing?.id) {
+        await supabase.from('restaurants').update({
+          owner_password: newPass,
+          updated_at: new Date().toISOString()
+        }).eq('id', existing.id);
+      } else {
+        await supabase.from('restaurants').upsert({
+          slug: 'eterra-peru',
+          name: restaurant.name,
+          owner_password: newPass,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'slug' });
+      }
     }
+
     sounds.playClick();
     showToast('success', 'Contraseña del Propietario actualizada con éxito en la nube');
     addAuditLog('system_action', 'Contraseña maestra de Propietario actualizada');
