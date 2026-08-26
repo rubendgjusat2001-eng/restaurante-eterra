@@ -2,14 +2,9 @@
 
 import React from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
-import { MapPin, Phone, Mail, Clock, Lock, Instagram, Facebook } from 'lucide-react';
-import { sounds } from '@/lib/utils';
+import { MapPin, Phone, Mail, Clock, Instagram, Facebook } from 'lucide-react';
 
-interface PublicFooterProps {
-  onGoToInternal: () => void;
-}
-
-export function PublicFooter({ onGoToInternal }: PublicFooterProps) {
+export function PublicFooter() {
   const { restaurant } = useRestaurant();
 
   return (
@@ -83,21 +78,10 @@ export function PublicFooter({ onGoToInternal }: PublicFooterProps) {
 
       </div>
 
-      {/* Barra Inferior */}
+      {/* Barra Inferior Limpia */}
       <div className="max-w-7xl mx-auto pt-10 mt-10 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
         <p>© 2026 {restaurant.name} Gastro Group. Todos los derechos reservados.</p>
-        
-        {/* Acceso Seguro al Sistema Interno */}
-        <button
-          onClick={() => {
-            sounds.playClick();
-            onGoToInternal();
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-300 border border-white/10 transition-colors"
-        >
-          <Lock className="w-3 h-3" />
-          <span>Acceso Personal POS / KDS / Caja</span>
-        </button>
+        <p className="text-slate-500">Alta Gastronomía & Pesca del Día</p>
       </div>
     </footer>
   );

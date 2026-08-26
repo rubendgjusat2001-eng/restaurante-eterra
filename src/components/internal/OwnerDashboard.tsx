@@ -829,6 +829,160 @@ export function OwnerDashboard() {
         </div>
       )}
 
+      {/* TAB: CMS & CONFIGURACIÓN DE LA WEB PÚBLICA */}
+      {activeTab === 'cms' && (
+        <div className="space-y-6 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-cyan-700" />
+                  Editor CMS de la Web Pública de Clientes
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Los cambios que guardes aquí se sincronizan en tiempo real con la web que ven tus comensales en la URL principal.
+                </p>
+              </div>
+
+              <a
+                href="/"
+                target="_blank"
+                rel="noreferrer"
+                className="py-2 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5 text-cyan-700" />
+                <span>Abrir Web en Vivo ↗</span>
+              </a>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateRestaurantInfo({
+                  name: cmsName,
+                  slogan: cmsSlogan,
+                  story: cmsStory,
+                  heroImageUrl: cmsHeroImage,
+                  phone: cmsPhone,
+                  whatsapp: cmsWhatsapp,
+                  address: cmsAddress,
+                  openingHours: {
+                    ...restaurant.openingHours,
+                    lunch: cmsLunch,
+                    dinner: cmsDinner
+                  }
+                });
+                showToast('success', '¡Web pública de clientes actualizada con éxito en tiempo real!');
+              }}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nombre Comercial del Restaurante</label>
+                  <input
+                    type="text"
+                    value={cmsName}
+                    onChange={e => setCmsName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Eslogan Principal (Hero)</label>
+                  <input
+                    type="text"
+                    value={cmsSlogan}
+                    onChange={e => setCmsSlogan(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Historia y Filosofía Gastronómica</label>
+                <textarea
+                  rows={3}
+                  value={cmsStory}
+                  onChange={e => setCmsStory(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600 leading-relaxed"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">URL de Imagen Principal (Hero Banner)</label>
+                <input
+                  type="text"
+                  value={cmsHeroImage}
+                  onChange={e => setCmsHeroImage(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 font-mono focus:outline-none focus:border-cyan-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Teléfono Fijo / Central</label>
+                  <input
+                    type="text"
+                    value={cmsPhone}
+                    onChange={e => setCmsPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp de Reservas</label>
+                  <input
+                    type="text"
+                    value={cmsWhatsapp}
+                    onChange={e => setCmsWhatsapp(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Dirección del Local</label>
+                  <input
+                    type="text"
+                    value={cmsAddress}
+                    onChange={e => setCmsAddress(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Horario Almuerzo</label>
+                  <input
+                    type="text"
+                    value={cmsLunch}
+                    onChange={e => setCmsLunch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Horario Cena</label>
+                  <input
+                    type="text"
+                    value={cmsDinner}
+                    onChange={e => setCmsDinner(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Publicar Cambios en la Web de Clientes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
