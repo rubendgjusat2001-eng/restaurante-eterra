@@ -11,22 +11,15 @@ import {
   RotateCcw, 
   Save, 
   Check, 
-  ChevronRight, 
-  Globe,
-  Sparkles,
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  KeyRound,
-  Trash2,
-  AlertTriangle
+  ChevronRight,
+  KeyRound
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
 export function SettingsView() {
   const { 
     restaurant, 
+    currentThemeColors,
     updateRestaurantInfo, 
     setThemePreset, 
     updateOwnerPassword, 
@@ -35,6 +28,10 @@ export function SettingsView() {
   } = useRestaurant();
 
   const [activeTab, setActiveTab] = useState<'info' | 'theme' | 'security' | 'maintenance'>('info');
+
+  const primaryColor = currentThemeColors.primary || '#0284c7';
+  const primaryHover = currentThemeColors.primaryHover || '#0369a1';
+  const accentColor = currentThemeColors.accent || '#d97706';
 
   // Form Info
   const [name, setName] = useState(restaurant.name);
@@ -116,13 +113,15 @@ export function SettingsView() {
           { id: 'maintenance', label: 'Zona de Mantenimiento', icon: RotateCcw },
         ].map(tab => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+              style={isActive ? { backgroundColor: primaryColor, color: '#ffffff', boxShadow: `0 4px 12px ${primaryColor}30` } : {}}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? ''
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
@@ -151,7 +150,7 @@ export function SettingsView() {
                 required
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
@@ -160,7 +159,7 @@ export function SettingsView() {
                 type="text"
                 value={slogan}
                 onChange={e => setSlogan(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -171,7 +170,7 @@ export function SettingsView() {
               rows={3}
               value={story}
               onChange={e => setStory(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 leading-relaxed"
+              className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 leading-relaxed"
             />
           </div>
 
@@ -182,7 +181,7 @@ export function SettingsView() {
                 type="text"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
@@ -191,7 +190,7 @@ export function SettingsView() {
                 type="text"
                 value={whatsapp}
                 onChange={e => setWhatsapp(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
@@ -200,7 +199,7 @@ export function SettingsView() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -212,7 +211,7 @@ export function SettingsView() {
                 type="text"
                 value={address}
                 onChange={e => setAddress(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
@@ -221,7 +220,7 @@ export function SettingsView() {
                 type="text"
                 value={city}
                 onChange={e => setCity(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -233,7 +232,7 @@ export function SettingsView() {
                 type="text"
                 value={lunchHours}
                 onChange={e => setLunchHours(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
@@ -242,7 +241,7 @@ export function SettingsView() {
                 type="text"
                 value={dinnerHours}
                 onChange={e => setDinnerHours(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -250,7 +249,8 @@ export function SettingsView() {
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              style={{ backgroundColor: primaryColor }}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-xs shadow-md transition-all cursor-pointer hover:opacity-90"
             >
               <Save className="w-4 h-4" />
               <span>Guardar Cambios</span>
@@ -259,12 +259,14 @@ export function SettingsView() {
         </form>
       )}
 
-      {/* PESTAÑA 2: ESTÉTICA & PALETA */}
+      {/* PESTAÑA 2: ESTÉTICA & PALETA DEL SISTEMA */}
       {activeTab === 'theme' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 animate-in fade-in">
           <div>
             <h3 className="text-base font-black text-slate-900">Paleta de Color del Sistema Privado</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Personaliza los tonos y acentos del sistema según el rubro de tu restaurante.</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Personaliza en tiempo real los tonos, acentos y ambientación del sistema interno según el rubro de tu restaurante.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -275,16 +277,24 @@ export function SettingsView() {
                 <div
                   key={key}
                   onClick={() => setThemePreset(key)}
-                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                  style={isSelected ? {
+                    borderColor: theme.colors.primary,
+                    backgroundColor: `${theme.colors.primary}08`,
+                    boxShadow: `0 4px 20px ${theme.colors.primary}20`
+                  } : {}}
+                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
                     isSelected 
-                      ? 'border-amber-500 bg-amber-50/40 shadow-sm ring-2 ring-amber-500/20' 
+                      ? 'border-2' 
                       : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-2xl">{theme.icon}</span>
                     {isSelected && (
-                      <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
+                      <span 
+                        style={{ backgroundColor: theme.colors.primary, color: '#ffffff' }}
+                        className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black shadow-xs"
+                      >
                         <Check className="w-3 h-3" /> ACTIVO
                       </span>
                     )}
@@ -318,64 +328,70 @@ export function SettingsView() {
               <input
                 type="password"
                 required
-                placeholder="••••••••••••"
                 value={currentPass}
                 onChange={e => setCurrentPass(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                placeholder="••••••••••••"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-mono"
               />
             </div>
+
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Nueva Contraseña Segura</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Nueva Contraseña</label>
               <input
                 type="password"
                 required
-                placeholder="Mínimo 6 caracteres (letras, números y símbolos)"
                 value={newPass}
                 onChange={e => setNewPass(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                placeholder="Mínimo 6 caracteres"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-mono"
               />
             </div>
+
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Confirmar Nueva Contraseña</label>
               <input
                 type="password"
                 required
-                placeholder="Repita la nueva contraseña"
                 value={confirmPass}
                 onChange={e => setConfirmPass(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                placeholder="Repita la nueva contraseña"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-mono"
               />
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-all cursor-pointer"
+              style={{ backgroundColor: primaryColor }}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-xs shadow-md transition-all cursor-pointer hover:opacity-90"
             >
               <KeyRound className="w-4 h-4" />
-              <span>Actualizar Contraseña de Seguridad</span>
+              <span>Actualizar Contraseña Maestra</span>
             </button>
           </div>
         </form>
       )}
 
-      {/* PESTAÑA 4: ZONA DE MANTENIMIENTO */}
+      {/* PESTAÑA 4: MANTENIMIENTO */}
       {activeTab === 'maintenance' && (
-        <div className="bg-white border border-rose-200 rounded-2xl p-6 shadow-xs space-y-6 animate-in fade-in">
-          <div className="flex items-center gap-3 text-rose-600">
-            <AlertTriangle className="w-6 h-6 shrink-0" />
-            <div>
-              <h3 className="text-base font-black text-rose-900">Mantenimiento & Reinicio Limpio</h3>
-              <p className="text-xs text-rose-600 mt-0.5">Herramientas de purga de datos y restablecimiento para puesta en marcha.</p>
-            </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 max-w-2xl animate-in fade-in">
+          <div>
+            <h3 className="text-base font-black text-rose-600 flex items-center gap-2">
+              <RotateCcw className="w-5 h-5" />
+              <span>Zona de Puesta en Cero (Clean Slate)</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Esta acción eliminará todas las órdenes de prueba y mesas creadas, dejando el sistema limpio para que el cliente configure su restaurante desde cero.
+            </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 space-y-3">
-            <h4 className="text-xs font-bold text-rose-900">Reiniciar Base de Datos a 0 (Clean Slate)</h4>
-            <p className="text-xs text-rose-700 leading-relaxed">
-              Esta acción limpia todas las mesas de prueba, comandas viejas y órdenes cerradas, dejando el sistema listo para el primer día de operación real de tu restaurante.
-            </p>
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-2">
+            <p className="font-bold">⚠️ Advertencia de Seguridad:</p>
+            <p>Se reiniciarán mesas, comandas y datos de prueba. Las credenciales de usuario y configuración del restaurante se mantendrán intactas.</p>
+          </div>
+
+          <div className="pt-2">
             <button
               onClick={() => {
                 if (confirm('¿Está seguro de reiniciar las órdenes y mesas a 0 para el inicio de operaciones?')) {

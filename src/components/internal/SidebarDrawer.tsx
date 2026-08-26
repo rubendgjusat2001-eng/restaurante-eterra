@@ -15,8 +15,7 @@ import {
   Globe, 
   LogOut,
   X,
-  ChevronRight,
-  ShieldCheck
+  ChevronRight
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
@@ -35,13 +34,13 @@ export function SidebarDrawer({
   onClose,
   activeTab,
   onTabChange,
-  onOpenSettings,
   onOpenCashDrawer,
   onGoToPublic
 }: SidebarDrawerProps) {
   const { 
     restaurant, 
     currentUser, 
+    currentThemeColors,
     logoutStaff, 
     staff, 
     tables, 
@@ -71,6 +70,20 @@ export function SidebarDrawer({
 
   if (!isOpen) return null;
 
+  const primaryColor = currentThemeColors.primary || '#0284c7';
+  const accentColor = currentThemeColors.accent || '#d97706';
+
+  const getItemStyle = (tabKey: InternalTab) => {
+    if (activeTab === tabKey) {
+      return {
+        backgroundColor: primaryColor,
+        color: '#ffffff',
+        boxShadow: `0 4px 14px ${primaryColor}40`
+      };
+    }
+    return {};
+  };
+
   return (
     <>
       {/* Backdrop oscuro para móviles y tablets */}
@@ -79,13 +92,16 @@ export function SidebarDrawer({
         className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
       />
 
-      {/* Drawer Lateral Desplegable (Inspirado 1:1 en referencia de sistema empresarial) */}
+      {/* Drawer Lateral Desplegable */}
       <aside className="fixed top-0 left-0 bottom-0 z-50 w-72 sm:w-80 bg-white border-r border-slate-200 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200 text-slate-900 font-sans select-none">
         
         {/* 1. Header de Marca */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 font-black text-xl flex items-center justify-center shadow-md shadow-amber-500/20">
+            <div 
+              style={{ backgroundColor: primaryColor }}
+              className="w-10 h-10 rounded-2xl text-white font-black text-xl flex items-center justify-center shadow-md transition-colors duration-300"
+            >
               É
             </div>
             <div>
@@ -93,7 +109,10 @@ export function SidebarDrawer({
                 <span className="font-black text-sm tracking-wider uppercase text-slate-900">
                   {restaurant.name}
                 </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 uppercase">
+                <span 
+                  style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                  className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase transition-colors"
+                >
                   OS
                 </span>
               </div>
@@ -126,10 +145,9 @@ export function SidebarDrawer({
               {/* Salón & Mesas */}
               <button
                 onClick={() => handleSelectTab('waiter')}
+                style={getItemStyle('waiter')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'waiter'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                  activeTab === 'waiter' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -137,9 +155,10 @@ export function SidebarDrawer({
                   <span>Salón & Mesas</span>
                 </div>
                 {tablesOccupied > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === 'waiter' ? 'bg-slate-950 text-white' : 'bg-amber-100 text-amber-900'
-                  }`}>
+                  <span 
+                    style={activeTab === 'waiter' ? { backgroundColor: '#ffffff', color: primaryColor } : { backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-black"
+                  >
                     {tablesOccupied} activas
                   </span>
                 )}
@@ -148,10 +167,9 @@ export function SidebarDrawer({
               {/* KDS Cocina & Bar */}
               <button
                 onClick={() => handleSelectTab('kitchen')}
+                style={getItemStyle('kitchen')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'kitchen'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                  activeTab === 'kitchen' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -160,7 +178,7 @@ export function SidebarDrawer({
                 </div>
                 {pendingKitchenItems > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === 'kitchen' ? 'bg-slate-950 text-white' : 'bg-rose-500 text-white animate-pulse'
+                    activeTab === 'kitchen' ? 'bg-white text-slate-950' : 'bg-rose-500 text-white animate-pulse'
                   }`}>
                     {pendingKitchenItems}
                   </span>
@@ -170,10 +188,9 @@ export function SidebarDrawer({
               {/* Caja & Facturación */}
               <button
                 onClick={() => handleSelectTab('cashier')}
+                style={getItemStyle('cashier')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'cashier'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                  activeTab === 'cashier' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -181,7 +198,10 @@ export function SidebarDrawer({
                   <span>Caja & Facturación</span>
                 </div>
                 {billsRequested > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-cyan-600 text-white animate-bounce">
+                  <span 
+                    style={{ backgroundColor: accentColor }}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-black text-white animate-bounce"
+                  >
                     {billsRequested} cuentas
                   </span>
                 )}
@@ -199,10 +219,9 @@ export function SidebarDrawer({
                 {/* Dashboard */}
                 <button
                   onClick={() => handleSelectTab('owner')}
+                  style={getItemStyle('owner')}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'owner'
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                    activeTab === 'owner' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -214,14 +233,13 @@ export function SidebarDrawer({
                 {/* Carta & Platos */}
                 <button
                   onClick={() => handleSelectTab('dishes')}
+                  style={getItemStyle('dishes')}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'dishes'
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                    activeTab === 'dishes' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Utensils className="w-4 h-4 text-amber-600" />
+                    <Utensils className="w-4 h-4" />
                     <span>Carta & Platos</span>
                   </div>
                 </button>
@@ -229,17 +247,19 @@ export function SidebarDrawer({
                 {/* Personal & Roles (Estilo Imagen 3) */}
                 <button
                   onClick={() => handleSelectTab('staff')}
+                  style={getItemStyle('staff')}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'staff'
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                    activeTab === 'staff' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 text-cyan-700" />
+                    <Users className="w-4 h-4" />
                     <span>Personal & Roles</span>
                   </div>
-                  <span className="text-[10px] text-slate-600 font-bold bg-slate-100 px-1.5 py-0.2 rounded font-mono">
+                  <span 
+                    style={activeTab === 'staff' ? { backgroundColor: '#ffffff', color: primaryColor } : {}}
+                    className="text-[10px] text-slate-600 font-bold bg-slate-100 px-1.5 py-0.2 rounded font-mono"
+                  >
                     {staff.length}
                   </span>
                 </button>
@@ -256,14 +276,13 @@ export function SidebarDrawer({
               {currentUser?.role === 'owner' && (
                 <button
                   onClick={() => handleSelectTab('settings')}
+                  style={getItemStyle('settings')}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'settings'
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                    activeTab === 'settings' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Settings className="w-4 h-4 text-cyan-700" />
+                    <Settings className="w-4 h-4" />
                     <span>Configuración General</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-black">⚙️</span>
@@ -279,7 +298,7 @@ export function SidebarDrawer({
                 className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <Coins className="w-4 h-4 text-amber-600" />
+                  <Coins className="w-4 h-4 text-slate-500" />
                   <span>Arqueo de Turno (X/Z)</span>
                 </div>
               </button>
@@ -293,7 +312,7 @@ export function SidebarDrawer({
                 className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <Globe className="w-4 h-4 text-cyan-700" />
+                  <Globe className="w-4 h-4 text-slate-500" />
                   <span>Ver Portal Clientes</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -308,7 +327,10 @@ export function SidebarDrawer({
           <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
             
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div 
+                style={{ backgroundColor: primaryColor }}
+                className="w-9 h-9 rounded-xl text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0 transition-colors"
+              >
                 {currentUser ? currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'OS'}
               </div>
               <div className="min-w-0">

@@ -7,22 +7,18 @@ import {
   Users, 
   Search, 
   Plus, 
-  Lock, 
   Trash2, 
-  Edit, 
-  ShieldCheck, 
   KeyRound, 
   ChevronRight, 
-  CheckCircle2,
-  X,
-  Sparkles,
-  Filter
+  X, 
+  Filter 
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
 export function StaffManagementView() {
   const { 
     staff, 
+    currentThemeColors,
     addStaffUser, 
     deleteStaffUser, 
     updateUserPin, 
@@ -32,7 +28,8 @@ export function StaffManagementView() {
   const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'shifts'>('users');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const primaryColor = currentThemeColors.primary || '#0284c7';
 
   // Formulario Nuevo Usuario
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
@@ -68,16 +65,22 @@ export function StaffManagementView() {
   // Filtrado de usuarios
   const filteredStaff = staff.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.role.toLowerCase().includes(searchTerm.toLowerCase());
+      user.role.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? user.active : !user.active);
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesSearch && matchesRole;
   });
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'owner':
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">👑 Dueño / Propietario</span>;
+        return (
+          <span 
+            style={{ backgroundColor: `${primaryColor}15`, color: primaryColor, borderColor: `${primaryColor}30` }}
+            className="px-2.5 py-1 rounded-full text-xs font-bold border"
+          >
+            👑 Dueño / Propietario
+          </span>
+        );
       case 'manager':
         return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200">Administrador</span>;
       case 'cashier':
@@ -105,36 +108,27 @@ export function StaffManagementView() {
 
       {/* 2. Pestañas Superiores (Estilo Referencia Imagen 3) */}
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'users'
-              ? 'bg-amber-500 text-slate-950 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          Usuarios ({staff.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('roles')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'roles'
-              ? 'bg-amber-500 text-slate-950 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          Permisos de Roles
-        </button>
-        <button
-          onClick={() => setActiveTab('shifts')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'shifts'
-              ? 'bg-amber-500 text-slate-950 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          Horarios de Turno
-        </button>
+        {[
+          { id: 'users', label: `Usuarios (${staff.length})` },
+          { id: 'roles', label: 'Permisos de Roles' },
+          { id: 'shifts', label: 'Horarios de Turno' },
+        ].map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={isActive ? { backgroundColor: primaryColor, color: '#ffffff', boxShadow: `0 4px 12px ${primaryColor}30` } : {}}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? ''
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 3. Título de Sección + Botón de Acción Principal */}
@@ -150,7 +144,8 @@ export function StaffManagementView() {
 
         <button
           onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+          style={{ backgroundColor: primaryColor }}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md transition-all cursor-pointer self-start sm:self-auto hover:opacity-90"
         >
           {isAddFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           <span>{isAddFormOpen ? 'Cerrar Formulario' : '+ Nuevo Usuario'}</span>
@@ -161,7 +156,7 @@ export function StaffManagementView() {
       {isAddFormOpen && (
         <form onSubmit={handleCreateUser} className="p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4 animate-in slide-in-from-top-2 duration-150">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Plus className="w-4 h-4 text-amber-600" />
+            <Plus className="w-4 h-4 text-slate-600" />
             Registrar Nuevo Colaborador
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -173,7 +168,7 @@ export function StaffManagementView() {
                 placeholder="Ej: Carlos Mendoza"
                 value={newStaffName}
                 onChange={e => setNewStaffName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               />
             </div>
             <div>
@@ -181,18 +176,17 @@ export function StaffManagementView() {
               <select
                 value={newStaffRole}
                 onChange={e => setNewStaffRole(e.target.value as UserRole)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               >
-                <option value="waiter">Mozo de Salón (Comandero)</option>
-                <option value="cashier">Cajero (Caja & Cobros)</option>
-                <option value="waiter_cashier">Mozo & Cajero (Híbrido)</option>
+                <option value="waiter">Mozo de Salón</option>
+                <option value="cashier">Cajero</option>
                 <option value="kitchen">Cocinero (KDS Cocina)</option>
                 <option value="bar">Bartender (KDS Bar)</option>
                 <option value="manager">Administrador / Gerente</option>
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">PIN de Seguridad (4 Dígitos)</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">PIN de Acceso Rápido (4 dígitos)</label>
               <input
                 type="password"
                 maxLength={4}
@@ -200,7 +194,7 @@ export function StaffManagementView() {
                 placeholder="••••"
                 value={newStaffPin}
                 onChange={e => setNewStaffPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-mono tracking-widest focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-mono tracking-widest focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -214,7 +208,8 @@ export function StaffManagementView() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-sm transition-colors cursor-pointer"
+              style={{ backgroundColor: primaryColor }}
+              className="px-5 py-2 rounded-xl text-white text-xs font-bold shadow-sm transition-colors cursor-pointer hover:opacity-90"
             >
               Guardar Usuario
             </button>
@@ -234,7 +229,7 @@ export function StaffManagementView() {
               placeholder="Buscar por nombre, rol o usuario..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
             />
           </div>
           {searchTerm && (
@@ -261,19 +256,23 @@ export function StaffManagementView() {
               { id: 'cashier', label: 'Cajeros' },
               { id: 'kitchen', label: 'Cocina' },
               { id: 'bar', label: 'Bar' },
-            ].map(chip => (
-              <button
-                key={chip.id}
-                onClick={() => setRoleFilter(chip.id)}
-                className={`px-3 py-1 rounded-lg font-bold transition-all text-xs cursor-pointer ${
-                  roleFilter === chip.id
-                    ? 'bg-amber-500 text-slate-950 shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                {chip.label}
-              </button>
-            ))}
+            ].map(chip => {
+              const isSelected = roleFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => setRoleFilter(chip.id)}
+                  style={isSelected ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all text-xs cursor-pointer ${
+                    isSelected
+                      ? 'shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -311,7 +310,10 @@ export function StaffManagementView() {
                       {/* Columna Usuario */}
                       <td className="py-4 px-4 sm:px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center shadow-2xs shrink-0">
+                          <div 
+                            style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                            className="w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center shadow-2xs shrink-0"
+                          >
                             {initials}
                           </div>
                           <div>
@@ -353,7 +355,7 @@ export function StaffManagementView() {
                                 showToast('error', 'El PIN debe tener exactamente 4 dígitos numéricos');
                               }
                             }}
-                            className="p-2 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                             title="Cambiar PIN de Acceso"
                           >
                             <KeyRound className="w-4 h-4" />

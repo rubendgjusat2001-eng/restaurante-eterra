@@ -8,12 +8,10 @@ import {
   Search, 
   Plus, 
   Trash2, 
-  Sparkles, 
   ChevronRight, 
   X, 
-  CheckCircle2,
-  DollarSign,
-  Layers
+  CheckCircle2, 
+  Layers 
 } from 'lucide-react';
 import { sounds, formatMoney } from '@/lib/utils';
 
@@ -21,6 +19,7 @@ export function DishManagementView() {
   const { 
     menuItems, 
     categories, 
+    currentThemeColors,
     addDish, 
     deleteDish, 
     toggleDishAvailability, 
@@ -30,6 +29,8 @@ export function DishManagementView() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
+  const primaryColor = currentThemeColors.primary || '#0284c7';
 
   // Formulario Nuevo Plato
   const [dishName, setDishName] = useState('');
@@ -72,10 +73,10 @@ export function DishManagementView() {
     setDishName('');
     setDishDesc('');
     setIsAddFormOpen(false);
-    showToast('success', `Plato "${newDish.name}" registrado en la carta`);
     sounds.playClick();
   };
 
+  // Filtrado
   const filteredDishes = menuItems.filter(dish => {
     const matchesCat = selectedCategory === 'all' || dish.categoryId === selectedCategory;
     const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,7 +107,8 @@ export function DishManagementView() {
 
         <button
           onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer self-start sm:self-auto"
+          style={{ backgroundColor: primaryColor }}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md transition-all cursor-pointer self-start sm:self-auto hover:opacity-90"
         >
           {isAddFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           <span>{isAddFormOpen ? 'Cerrar Formulario' : '+ Nuevo Plato'}</span>
@@ -117,7 +119,7 @@ export function DishManagementView() {
       {isAddFormOpen && (
         <form onSubmit={handleCreateDish} className="p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4 animate-in slide-in-from-top-2 duration-150">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Plus className="w-4 h-4 text-amber-600" />
+            <Plus className="w-4 h-4 text-slate-600" />
             Añadir Nuevo Plato a la Carta
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -129,7 +131,7 @@ export function DishManagementView() {
                 placeholder="Ej: Ceviche Clásico de Corvina"
                 value={dishName}
                 onChange={e => setDishName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               />
             </div>
             <div>
@@ -137,7 +139,7 @@ export function DishManagementView() {
               <select
                 value={dishCat}
                 onChange={e => setDishCat(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               >
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -153,7 +155,7 @@ export function DishManagementView() {
                 placeholder="48.00"
                 value={dishPrice}
                 onChange={e => setDishPrice(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -163,7 +165,7 @@ export function DishManagementView() {
               <select
                 value={dishStation}
                 onChange={e => setDishStation(e.target.value as DishStation)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               >
                 <option value="kitchen_cold">❄️ Cocina Fría (Ceviches & Entradas)</option>
                 <option value="kitchen_hot">🔥 Cocina Caliente (Brasas & Salteados)</option>
@@ -177,7 +179,7 @@ export function DishManagementView() {
                 placeholder="Ej: Pesca del día en cubos, limón sutil, cebolla roja, ají limo, choclo desgranado y camote glaseado."
                 value={dishDesc}
                 onChange={e => setDishDesc(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
@@ -191,7 +193,8 @@ export function DishManagementView() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-sm transition-colors cursor-pointer"
+              style={{ backgroundColor: primaryColor }}
+              className="px-5 py-2 rounded-xl text-white text-xs font-bold shadow-sm transition-colors cursor-pointer hover:opacity-90"
             >
               Guardar Plato
             </button>
@@ -210,7 +213,7 @@ export function DishManagementView() {
             placeholder="Buscar por nombre de plato o descripción..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-colors"
+            className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
           />
         </div>
 
@@ -218,9 +221,10 @@ export function DishManagementView() {
         <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100 pb-1">
           <button
             onClick={() => setSelectedCategory('all')}
+            style={selectedCategory === 'all' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               selectedCategory === 'all'
-                ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                ? 'shadow-2xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -228,13 +232,15 @@ export function DishManagementView() {
           </button>
           {categories.map(c => {
             const count = menuItems.filter(d => d.categoryId === c.id).length;
+            const isSelected = selectedCategory === c.id;
             return (
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
+                style={isSelected ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedCategory === c.id
-                    ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                  isSelected
+                    ? 'shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -265,74 +271,60 @@ export function DishManagementView() {
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <Utensils className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="font-semibold text-xs">No hay platos registrados</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Usa el botón "+ Nuevo Plato" para agregar tus primeras creaciones.</p>
+                    <p className="font-semibold text-xs">No hay platos en esta categoría</p>
                   </td>
                 </tr>
               ) : (
-                filteredDishes.map((dish) => (
-                  <tr key={dish.id} className="hover:bg-slate-50/80 transition-colors">
-                    
-                    {/* Plato & Foto */}
-                    <td className="py-3.5 px-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={dish.imageUrl} 
-                          alt={dish.name} 
-                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0" 
-                        />
-                        <div>
-                          <div className="font-bold text-slate-900 text-xs sm:text-sm">{dish.name}</div>
-                          <div className="text-[11px] text-slate-400 line-clamp-1 max-w-xs">{dish.description}</div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Categoría */}
-                    <td className="py-3.5 px-4 sm:px-6 font-semibold text-slate-700">
-                      {categories.find(c => c.id === dish.categoryId)?.name || 'General'}
-                    </td>
-
-                    {/* Estación */}
-                    <td className="py-3.5 px-4 sm:px-6">
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                        {dish.station === 'kitchen_cold' ? '❄️ Fría' : dish.station === 'kitchen_hot' ? '🔥 Caliente' : '🍹 Bar'}
-                      </span>
-                    </td>
-
-                    {/* Precio */}
-                    <td className="py-3.5 px-4 sm:px-6 font-black font-mono text-slate-900 text-sm">
-                      {formatMoney(dish.price)}
-                    </td>
-
-                    {/* Interruptor Disponibilidad */}
-                    <td className="py-3.5 px-4 sm:px-6">
-                      <button
-                        onClick={() => toggleDishAvailability(dish.id)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                          dish.isAvailable
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${dish.isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                        <span>{dish.isAvailable ? 'Disponible' : 'Agotado (86)'}</span>
-                      </button>
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="py-3.5 px-4 sm:px-6 text-right">
-                      <button
-                        onClick={() => deleteDish(dish.id)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                        title="Eliminar Plato"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-
-                  </tr>
-                ))
+                filteredDishes.map((dish) => {
+                  const cat = categories.find(c => c.id === dish.categoryId);
+                  return (
+                    <tr key={dish.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-4 px-4 sm:px-6">
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm">{dish.name}</div>
+                        <div className="text-[11px] text-slate-400 line-clamp-1 max-w-xs">{dish.description}</div>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px]">
+                          {cat?.name || 'General'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6">
+                        <span className="text-[11px] text-slate-600 font-medium">
+                          {dish.station === 'kitchen_cold' ? 'Cocina Fría' : dish.station === 'kitchen_hot' ? 'Cocina Caliente' : 'Bar'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 font-mono font-bold text-slate-900 text-xs">
+                        {formatMoney(dish.price)}
+                      </td>
+                      <td className="py-4 px-4 sm:px-6">
+                        <button
+                          onClick={() => toggleDishAvailability(dish.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                            dish.isAvailable
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-rose-100 text-rose-800 hover:bg-rose-200 line-through'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${dish.isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          <span>{dish.isAvailable ? 'Disponible' : 'Agotado (86)'}</span>
+                        </button>
+                      </td>
+                      <td className="py-4 px-4 sm:px-6 text-right">
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar ${dish.name} de la carta?`)) {
+                              deleteDish(dish.id);
+                            }
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          title="Eliminar Plato"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
