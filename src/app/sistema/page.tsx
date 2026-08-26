@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { ToastContainer } from '@/components/common/ToastContainer';
 
-// Componentes Internos del Sistema
+// Componentes y Vistas Completas del Sistema Interno
 import { SidebarDrawer } from '@/components/internal/SidebarDrawer';
 import { InternalHeader } from '@/components/internal/InternalHeader';
 import { InternalTab } from '@/components/internal/InternalNavbar';
@@ -13,20 +13,21 @@ import { KitchenKDS } from '@/components/internal/KitchenKDS';
 import { CashierDesk } from '@/components/internal/CashierDesk';
 import { CashDrawerModal } from '@/components/internal/CashDrawerModal';
 import { OwnerDashboard } from '@/components/internal/OwnerDashboard';
-import { SystemSettingsModal } from '@/components/internal/SystemSettingsModal';
+import { StaffManagementView } from '@/components/internal/StaffManagementView';
+import { DishManagementView } from '@/components/internal/DishManagementView';
+import { SettingsView } from '@/components/internal/SettingsView';
 import { SystemLoginScreen } from '@/components/common/SystemLoginScreen';
 
 export default function SistemaPrivadoPage() {
   const { currentUser } = useRestaurant();
 
-  // Pestaña activa dentro del ERP interno
+  // Pestaña o Vista activa dentro del ERP interno
   const [internalTab, setInternalTab] = useState<InternalTab>('waiter');
 
   // Estado del Sidebar / Drawer Desplegable
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Modales de Gestión
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  // Modal de Arqueo Físico de Caja
   const [isCashDrawerOpen, setIsCashDrawerOpen] = useState(false);
 
   // Sincronizar automáticamente la pestaña según el rol del usuario autenticado
@@ -36,7 +37,7 @@ export default function SistemaPrivadoPage() {
       setInternalTab('kitchen');
     } else if (currentUser.role === 'cashier') {
       setInternalTab('cashier');
-    } else if (currentUser.role === 'waiter' && internalTab === 'owner') {
+    } else if (currentUser.role === 'waiter' && (internalTab === 'owner' || internalTab === 'settings' || internalTab === 'staff')) {
       setInternalTab('waiter');
     }
   }, [currentUser]);
@@ -54,11 +55,11 @@ export default function SistemaPrivadoPage() {
       ) : (
         <div className="flex-1 flex flex-col min-h-screen animate-in fade-in duration-200">
           
-          {/* Cabecera Superior con Botón de Menú Hamburguesa y Estado */}
+          {/* Cabecera Superior con Botón de Menú y Estado */}
           <InternalHeader
             activeTab={internalTab}
             onOpenSidebar={() => setIsSidebarOpen(true)}
-            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenSettings={() => setInternalTab('settings')}
             onOpenCashAudit={() => setIsCashDrawerOpen(true)}
           />
 
@@ -68,7 +69,7 @@ export default function SistemaPrivadoPage() {
             onClose={() => setIsSidebarOpen(false)}
             activeTab={internalTab}
             onTabChange={tab => setInternalTab(tab)}
-            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenSettings={() => setInternalTab('settings')}
             onOpenCashDrawer={() => setIsCashDrawerOpen(true)}
             onGoToPublic={() => {
               if (typeof window !== 'undefined') {
@@ -77,19 +78,16 @@ export default function SistemaPrivadoPage() {
             }}
           />
 
-          {/* Área de Trabajo Operativa */}
+          {/* Área de Trabajo Operativa por Pantalla Completa Dedicada */}
           <main className="flex-1 overflow-x-hidden">
             {internalTab === 'waiter' && <WaiterFloorMap />}
             {internalTab === 'kitchen' && <KitchenKDS />}
             {internalTab === 'cashier' && <CashierDesk />}
             {internalTab === 'owner' && <OwnerDashboard />}
+            {internalTab === 'dishes' && <DishManagementView />}
+            {internalTab === 'staff' && <StaffManagementView />}
+            {internalTab === 'settings' && <SettingsView />}
           </main>
-
-          {/* Modal de Configuración General (⚙️) */}
-          <SystemSettingsModal
-            isOpen={isSettingsModalOpen}
-            onClose={() => setIsSettingsModalOpen(false)}
-          />
 
           {/* Modal de Control y Arqueo Físico de Caja (Corte X y Z) */}
           <CashDrawerModal

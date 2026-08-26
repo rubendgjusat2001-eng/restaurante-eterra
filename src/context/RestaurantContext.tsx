@@ -84,6 +84,7 @@ interface RestaurantContextType {
   toggleDishAvailability: (id: string) => void;
   updateDish: (dish: MenuItem) => void;
   addDish: (dish: MenuItem) => void;
+  deleteDish: (id: string) => void;
 
   // Mesas y Salones
   tables: Table[];
@@ -785,6 +786,15 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         is_featured: dish.isFeatured || false
       }).then();
     }
+  };
+
+  const deleteDish = (dishId: string) => {
+    setMenuItems(prev => prev.filter(d => d.id !== dishId));
+    if (supabase) {
+      supabase.from('menu_items').delete().eq('id', dishId).then();
+    }
+    sounds.playClick();
+    showToast('info', 'Plato eliminado de la carta');
   };
 
   // Gestión de Mesas con Trazabilidad de Personal y Horas
@@ -1502,6 +1512,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         toggleDishAvailability,
         updateDish,
         addDish,
+        deleteDish,
         tables,
         activeZone,
         setActiveZone,
