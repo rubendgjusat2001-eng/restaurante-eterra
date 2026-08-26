@@ -49,7 +49,7 @@ const PATH_TO_TAB: Record<string, InternalTab> = {
 };
 
 export default function SistemaPrivadoPage() {
-  const { currentUser } = useRestaurant();
+  const { currentUser, isAuthLoaded } = useRestaurant();
 
   // Pestaña o Vista activa dentro del ERP interno
   const [internalTab, setInternalTab] = useState<InternalTab>('waiter');
@@ -105,6 +105,22 @@ export default function SistemaPrivadoPage() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Si la autenticación aún se está verificando desde storage, mostrar splash de carga instantáneo
+  if (!isAuthLoaded) {
+    return (
+      <div className="min-h-screen bg-[#050c18] flex items-center justify-center text-white font-sans">
+        <div className="flex flex-col items-center gap-3 animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+            É
+          </div>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+            Verificando Sesión Segura...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans select-none">

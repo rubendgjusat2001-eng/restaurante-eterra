@@ -62,6 +62,7 @@ interface RestaurantContextType {
   // Personal & Auth
   staff: StaffUser[];
   currentUser: StaffUser | null;
+  isAuthLoaded: boolean;
   ownerCredentials: { email: string; username: string };
   loginWithOwnerPassword: (identifier: string, pass: string) => boolean;
   updateOwnerPassword: (currentPass: string, newPass: string) => boolean;
@@ -174,30 +175,83 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     return INITIAL_RESTAURANT;
   });
 
-  const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos exactos de inactividad
+  const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos de inactividad
+  const SESSION_KEY = 'eterra_active_session_user';
+  const ACTIVITY_KEY = 'eterra_active_session_last_activity';
 
-  const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('eterra_active_session_user');
-        const lastActive = localStorage.getItem('eterra_active_session_last_activity');
-        if (saved && lastActive) {
-          const diff = Date.now() - Number(lastActive);
-          if (diff < INACTIVITY_TIMEOUT_MS) {
-            localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
-            return JSON.parse(saved);
-          } else {
-            localStorage.removeItem('eterra_active_session_user');
-            localStorage.removeItem('eterra_active_session_last_activity');
-          }
+  // Helper robusto para guardar sesión en múltiples capas (localStorage + sessionStorage + cookie)
+  const saveSessionToStorage = (user: StaffUser) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const dataStr = JSON.stringify(user);
+      const nowStr = String(Date.now());
+      localStorage.setItem(SESSION_KEY, dataStr);
+      localStorage.setItem(ACTIVITY_KEY, nowStr);
+      sessionStorage.setItem(SESSION_KEY, dataStr);
+      sessionStorage.setItem(ACTIVITY_KEY, nowStr);
+      document.cookie = `${SESSION_KEY}=${encodeURIComponent(dataStr)}; path=/; max-age=900; SameSite=Lax`;
+    } catch (e) {
+      console.error('Error persistiendo sesión:', e);
+    }
+  };
+
+  const clearSessionFromStorage = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(ACTIVITY_KEY);
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(ACTIVITY_KEY);
+      document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    } catch (e) {
+      console.error('Error limpiando sesión:', e);
+    }
+  };
+
+  const readSessionFromStorage = (): StaffUser | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      let rawUser = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+      let rawAct = localStorage.getItem(ACTIVITY_KEY) || sessionStorage.getItem(ACTIVITY_KEY);
+      
+      if (!rawUser) {
+        const match = document.cookie.match(new RegExp('(^| )' + SESSION_KEY + '=([^;]+)'));
+        if (match) rawUser = decodeURIComponent(match[2]);
+      }
+
+      if (rawUser) {
+        const lastAct = rawAct ? Number(rawAct) : Date.now();
+        const elapsed = Date.now() - lastAct;
+        if (elapsed < INACTIVITY_TIMEOUT_MS) {
+          const parsed = JSON.parse(rawUser);
+          // Renovar timestamp de actividad
+          localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+          sessionStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+          return parsed;
+        } else {
+          clearSessionFromStorage();
         }
-      } catch {}
+      }
+    } catch (e) {
+      console.error('Error leyendo sesión:', e);
     }
     return null;
-  });
+  };
+
+  const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
+  const [isAuthLoaded, setIsAuthLoaded] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
+
+  // Hidratación segura del lado del cliente al cargar la app
+  useEffect(() => {
+    const savedUser = readSessionFromStorage();
+    if (savedUser) {
+      setCurrentUser(savedUser);
+    }
+    setIsAuthLoaded(true);
+  }, []);
 
   // Cargar Staff de Supabase si existe
   useEffect(() => {
@@ -621,10 +675,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     if (isMatchUser && isMatchPass) {
       const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
       setCurrentUser(ownerUser);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('eterra_active_session_user', JSON.stringify(ownerUser));
-        localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
-      }
+      saveSessionToStorage(ownerUser);
       setIsPinModalOpen(false);
       sounds.playClick();
       showToast('success', `Bienvenido, ${ownerUser.name}. Sesión de Propietario activa.`, 'Acceso Autorizado');
@@ -664,10 +715,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       const match = staff.find(u => u.pin === pin && u.active);
       if (match) {
         setCurrentUser(match);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('eterra_active_session_user', JSON.stringify(match));
-          localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
-        }
+        saveSessionToStorage(match);
         setIsPinModalOpen(false);
         setPendingActionUser(null);
         sounds.playClick();
@@ -677,10 +725,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     } else {
       if (userToVerify.pin === pin) {
         setCurrentUser(userToVerify);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('eterra_active_session_user', JSON.stringify(userToVerify));
-          localStorage.setItem('eterra_active_session_last_activity', String(Date.now()));
-        }
+        saveSessionToStorage(userToVerify);
         setIsPinModalOpen(false);
         setPendingActionUser(null);
         sounds.playClick();
@@ -700,10 +745,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
   const logoutStaff = () => {
     setCurrentUser(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('eterra_active_session_user');
-      localStorage.removeItem('eterra_active_session_last_activity');
-    }
+    clearSessionFromStorage();
     sounds.playClick();
     showToast('info', 'Sesión de personal cerrada');
   };
@@ -1557,6 +1599,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         updateRestaurantInfo,
         staff,
         currentUser,
+        isAuthLoaded,
         ownerCredentials,
         loginWithOwnerPassword,
         updateOwnerPassword,
