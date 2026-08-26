@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { ToastContainer } from '@/components/common/ToastContainer';
 
@@ -18,6 +18,36 @@ import { DishManagementView } from '@/components/internal/DishManagementView';
 import { SettingsView } from '@/components/internal/SettingsView';
 import { SystemLoginScreen } from '@/components/common/SystemLoginScreen';
 
+// Mapeo entre pestañas internas y slugs de URL
+const TAB_TO_SLUG: Record<InternalTab, string> = {
+  waiter: 'mesas',
+  kitchen: 'cocina',
+  cashier: 'caja',
+  owner: 'dashboard',
+  dishes: 'carta',
+  staff: 'personal',
+  settings: 'configuracion',
+  shift: 'caja'
+};
+
+const SLUG_TO_TAB: Record<string, InternalTab> = {
+  mesas: 'waiter',
+  salon: 'waiter',
+  cocina: 'kitchen',
+  kds: 'kitchen',
+  caja: 'cashier',
+  facturacion: 'cashier',
+  dashboard: 'owner',
+  kpis: 'owner',
+  carta: 'dishes',
+  platos: 'dishes',
+  personal: 'staff',
+  roles: 'staff',
+  usuarios: 'staff',
+  configuracion: 'settings',
+  ajustes: 'settings'
+};
+
 export default function SistemaPrivadoPage() {
   const { currentUser } = useRestaurant();
 
@@ -30,17 +60,59 @@ export default function SistemaPrivadoPage() {
   // Modal de Arqueo Físico de Caja
   const [isCashDrawerOpen, setIsCashDrawerOpen] = useState(false);
 
-  // Sincronizar automáticamente la pestaña según el rol del usuario autenticado
+  // 1. Leer pestaña inicial desde la URL al cargar la página
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab')?.toLowerCase();
+    if (tabParam && SLUG_TO_TAB[tabParam]) {
+      setInternalTab(SLUG_TO_TAB[tabParam]);
+    }
+  }, []);
+
+  // 2. Función para cambiar pestaña y actualizar dinámicamente la URL en el navegador
+  const handleTabChange = useCallback((tab: InternalTab) => {
+    setInternalTab(tab);
+    if (typeof window !== 'undefined') {
+      const slug = TAB_TO_SLUG[tab] || 'mesas';
+      const newUrl = `/sistema?tab=${slug}`;
+      if (window.location.search !== `?tab=${slug}`) {
+        window.history.pushState({ tab }, '', newUrl);
+      }
+    }
+  }, []);
+
+  // 3. Soporte para botones Atrás / Adelante del navegador
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab')?.toLowerCase();
+      if (tabParam && SLUG_TO_TAB[tabParam]) {
+        setInternalTab(SLUG_TO_TAB[tabParam]);
+      } else {
+        setInternalTab('waiter');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 4. Sincronizar automáticamente la pestaña según el rol del usuario autenticado si no hay URL previa
   useEffect(() => {
     if (!currentUser) return;
-    if (currentUser.role === 'kitchen' || currentUser.role === 'bar') {
-      setInternalTab('kitchen');
-    } else if (currentUser.role === 'cashier') {
-      setInternalTab('cashier');
-    } else if (currentUser.role === 'waiter' && (internalTab === 'owner' || internalTab === 'settings' || internalTab === 'staff')) {
-      setInternalTab('waiter');
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const hasExplicitTab = params && params.get('tab');
+    if (!hasExplicitTab) {
+      if (currentUser.role === 'kitchen' || currentUser.role === 'bar') {
+        handleTabChange('kitchen');
+      } else if (currentUser.role === 'cashier') {
+        handleTabChange('cashier');
+      } else if (currentUser.role === 'waiter') {
+        handleTabChange('waiter');
+      }
     }
-  }, [currentUser]);
+  }, [currentUser, handleTabChange]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans select-none">
@@ -59,7 +131,7 @@ export default function SistemaPrivadoPage() {
           <InternalHeader
             activeTab={internalTab}
             onOpenSidebar={() => setIsSidebarOpen(true)}
-            onOpenSettings={() => setInternalTab('settings')}
+            onOpenSettings={() => handleTabChange('settings')}
             onOpenCashAudit={() => setIsCashDrawerOpen(true)}
           />
 
@@ -68,8 +140,8 @@ export default function SistemaPrivadoPage() {
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             activeTab={internalTab}
-            onTabChange={tab => setInternalTab(tab)}
-            onOpenSettings={() => setInternalTab('settings')}
+            onTabChange={tab => handleTabChange(tab)}
+            onOpenSettings={() => handleTabChange('settings')}
             onOpenCashDrawer={() => setIsCashDrawerOpen(true)}
             onGoToPublic={() => {
               if (typeof window !== 'undefined') {
