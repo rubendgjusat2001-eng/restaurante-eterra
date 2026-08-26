@@ -471,7 +471,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Cargar Staff de la Nube
+        // Cargar Staff de la Nube (incluyendo Owner)
         const { data: cloudStaff, error: staffErr } = await supabase!.from('staff_users').select('*');
         if (!staffErr && cloudStaff && cloudStaff.length > 0 && isMounted) {
           const mappedStaff: StaffUser[] = cloudStaff.map((u: any) => ({
@@ -484,6 +484,14 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
             active: true
           }));
           setStaff(mappedStaff);
+
+          const cloudOwner = cloudStaff.find((u: any) => u.role === 'owner' || u.id === 'user-owner');
+          if (cloudOwner?.pin) {
+            setOwnerPassword(cloudOwner.pin);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('eterra_owner_password', cloudOwner.pin);
+            }
+          }
         }
 
         // Cargar Mesas
@@ -841,16 +849,22 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    // Consultar directamente la contraseña activa en Supabase (Fuente de la verdad)
+    // 1. Consultar directamente la contraseña activa en Supabase staff_users (Fuente de verdad en la nube)
     let validPass = ownerPassword;
     if (supabase && isSupabaseConfigured) {
       try {
-        const { data: cloudRest } = await supabase.from('restaurants').select('owner_password').limit(1).maybeSingle();
-        if (cloudRest?.owner_password) {
-          validPass = cloudRest.owner_password;
-          setOwnerPassword(cloudRest.owner_password);
+        const { data: ownerRecord } = await supabase
+          .from('staff_users')
+          .select('pin')
+          .eq('role', 'owner')
+          .limit(1)
+          .maybeSingle();
+
+        if (ownerRecord?.pin) {
+          validPass = ownerRecord.pin;
+          setOwnerPassword(ownerRecord.pin);
           if (typeof window !== 'undefined') {
-            localStorage.setItem('eterra_owner_password', cloudRest.owner_password);
+            localStorage.setItem('eterra_owner_password', ownerRecord.pin);
           }
         }
       } catch (err) {
@@ -861,7 +875,15 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     const isMatchPass = cleanPass === validPass;
 
     if (isMatchPass) {
-      const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
+      const ownerUser = staff.find(s => s.role === 'owner') || {
+        id: 'user-owner',
+        name: 'Rubén (Propietario)',
+        role: 'owner' as UserRole,
+        pin: validPass,
+        avatar: '👑',
+        color: 'from-amber-500 to-amber-700',
+        active: true
+      };
       setCurrentUser(ownerUser);
       saveSessionToStorage(ownerUser);
       setIsPinModalOpen(false);
@@ -877,13 +899,19 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   };
 
   const updateOwnerPassword = async (currentPass: string, newPass: string): Promise<boolean> => {
-    // Validar contraseña actual contra la nube
+    // 1. Validar contraseña actual contra la nube (staff_users)
     let validPass = ownerPassword;
     if (supabase && isSupabaseConfigured) {
       try {
-        const { data: cloudRest } = await supabase.from('restaurants').select('id, owner_password').limit(1).maybeSingle();
-        if (cloudRest?.owner_password) {
-          validPass = cloudRest.owner_password;
+        const { data: ownerRecord } = await supabase
+          .from('staff_users')
+          .select('pin')
+          .eq('role', 'owner')
+          .limit(1)
+          .maybeSingle();
+
+        if (ownerRecord?.pin) {
+          validPass = ownerRecord.pin;
         }
       } catch {}
     }
@@ -897,26 +925,25 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    const now = Date.now();
-    if (supabase) {
-      const { data: existing } = await supabase.from('restaurants').select('id').limit(1).maybeSingle();
-      if (existing?.id) {
-        await supabase.from('restaurants').update({
-          owner_password: newPass,
-          force_logout_timestamp: now,
-          updated_at: new Date().toISOString()
-        }).eq('id', existing.id);
-      } else {
-        await supabase.from('restaurants').upsert({
-          slug: 'eterra-peru',
-          name: restaurant.name,
-          owner_password: newPass,
-          force_logout_timestamp: now,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'slug' });
-      }
+    // 2. Guardar en estado y almacenamiento local
+    setOwnerPassword(newPass);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('eterra_owner_password', newPass);
+      sessionStorage.setItem('eterra_owner_password', newPass);
     }
 
+    // 3. Persistir en Supabase staff_users (Fuente Global de la Nube)
+    if (supabase && isSupabaseConfigured) {
+      await supabase.from('staff_users').upsert({
+        id: 'user-owner',
+        name: 'Rubén (Propietario)',
+        role: 'owner',
+        pin: newPass,
+        avatar: '👑'
+      });
+    }
+
+    const now = Date.now();
     if (typeof window !== 'undefined') {
       localStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
       sessionStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
