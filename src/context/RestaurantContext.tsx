@@ -8,6 +8,7 @@ import {
   StaffUser, 
   UserRole, 
   MenuItem, 
+  DishStation,
   MenuCategory, 
   Table, 
   Order, 
@@ -348,23 +349,79 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     }
   }, [tables]);
 
-  // Sincronización Inicial y Tiempo Real con Supabase (Nube)
+  // Persistencia de Mesas y Órdenes en la Nube de Supabase
+  const persistTableToCloud = useCallback(async (table: Table) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('tables').upsert({
+        id: table.id,
+        number: table.number,
+        zone: table.zone,
+        capacity: table.capacity,
+        status: table.status,
+        customer_count: table.customerCount ?? null,
+        current_order_id: table.currentOrderId ?? null,
+        seated_at: table.seatedAt ?? null,
+        opened_timestamp: table.openedTimestamp ?? null,
+        opened_by_user_id: table.openedByUserId ?? null,
+        opened_by_user_name: table.openedByUserName ?? null,
+        assigned_waiter_id: table.assignedWaiterId ?? null,
+        assigned_waiter_name: table.assignedWaiterName ?? null,
+        closed_by_user_id: table.closedByUserId ?? null,
+        closed_by_user_name: table.closedByUserName ?? null,
+        closed_at: table.closedAt ?? null
+      });
+    } catch (e) {
+      console.warn('Persist table cloud error:', e);
+    }
+  }, []);
+
+  const persistOrderToCloud = useCallback(async (order: Order) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('orders').upsert({
+        id: order.id,
+        code: order.code,
+        table_id: order.tableId ?? null,
+        table_number: order.tableNumber ?? null,
+        waiter_id: order.waiterId,
+        waiter_name: order.waiterName,
+        opened_by_user_id: order.openedByUserId ?? null,
+        opened_by_user_name: order.openedByUserName ?? null,
+        closed_by_user_id: order.closedByUserId ?? null,
+        closed_by_user_name: order.closedByUserName ?? null,
+        closed_at: order.closedAt ?? null,
+        order_type: order.orderType || 'dine_in',
+        status: order.status || 'active',
+        items: order.items || [],
+        subtotal: order.subtotal || 0,
+        tax: order.tax || 0,
+        tip: order.tip || 0,
+        discount: order.discount || 0,
+        total: order.total || 0,
+        payment_method: order.paymentMethod || 'pending',
+        invoice_type: order.invoiceType ?? null,
+        customer_document: order.customerDocument ?? null,
+        customer_name: order.customerName ?? null,
+        customer_phone: order.customerPhone ?? null
+      });
+    } catch (e) {
+      console.warn('Persist order cloud error:', e);
+    }
+  }, []);
+
+  // Sincronización Inicial y Tiempo Real Bidireccional con Supabase (Nube)
   useEffect(() => {
     if (!supabase || !isSupabaseConfigured) return;
 
     let isMounted = true;
 
-    // 1. Cargar o Sembrar Mesas en la Nube
+    // 1. Cargar o Sembrar Mesas, Órdenes y Menú en la Nube
     async function syncCloudData() {
       try {
-        const { data: cloudTables, error } = await supabase!.from('tables').select('*');
-        if (error) {
-          console.warn('Error al conectar con Supabase:', error.message);
-          return;
-        }
-
-        if (cloudTables && cloudTables.length > 0 && isMounted) {
-          // Mapear de formato DB a formato App
+        // Cargar Mesas
+        const { data: cloudTables, error: tableErr } = await supabase!.from('tables').select('*');
+        if (!tableErr && cloudTables && cloudTables.length > 0 && isMounted) {
           const mappedTables: Table[] = cloudTables.map((t: any) => ({
             id: t.id,
             number: t.number,
@@ -384,8 +441,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
             closedAt: t.closed_at
           }));
           setTables(mappedTables);
-        } else if (cloudTables && cloudTables.length === 0) {
-          // Sembrar datos iniciales en la nube
+        } else if (!tableErr && cloudTables && cloudTables.length === 0) {
+          // Sembrar datos iniciales de mesas
           const tablesToInsert = INITIAL_TABLES.map(t => ({
             id: t.id,
             number: t.number,
@@ -403,16 +460,83 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           }));
           await supabase!.from('tables').insert(tablesToInsert);
         }
+
+        // Cargar Órdenes
+        const { data: cloudOrders, error: orderErr } = await supabase!.from('orders').select('*');
+        if (!orderErr && cloudOrders && cloudOrders.length > 0 && isMounted) {
+          const mappedOrders: Order[] = cloudOrders.map((o: any) => ({
+            id: o.id,
+            code: o.code,
+            tableId: o.table_id,
+            tableNumber: o.table_number,
+            waiterId: o.waiter_id,
+            waiterName: o.waiter_name,
+            openedByUserId: o.opened_by_user_id,
+            openedByUserName: o.opened_by_user_name,
+            closedByUserId: o.closed_by_user_id,
+            closedByUserName: o.closed_by_user_name,
+            closedAt: o.closed_at,
+            orderType: o.order_type,
+            items: Array.isArray(o.items) ? o.items : [],
+            subtotal: Number(o.subtotal) || 0,
+            tax: Number(o.tax) || 0,
+            tip: Number(o.tip) || 0,
+            discount: Number(o.discount) || 0,
+            total: Number(o.total) || 0,
+            status: o.status,
+            paymentMethod: o.payment_method,
+            invoiceType: o.invoice_type,
+            customerDocument: o.customer_document,
+            customerName: o.customer_name,
+            customerPhone: o.customer_phone,
+            createdAt: o.created_at
+          }));
+          setOrders(mappedOrders);
+        }
+
+        // Cargar Menú
+        const { data: cloudMenu, error: menuErr } = await supabase!.from('menu_items').select('*');
+        if (!menuErr && cloudMenu && cloudMenu.length > 0 && isMounted) {
+          const mappedMenu: MenuItem[] = cloudMenu.map((m: any) => ({
+            id: m.id,
+            categoryId: m.category_id,
+            name: m.name,
+            description: m.description || '',
+            price: Number(m.price) || 0,
+            costPrice: Number(m.cost_price) || Math.round((Number(m.price) || 0) * 0.35),
+            imageUrl: m.image_url || 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600&auto=format&fit=crop&q=80',
+            station: (m.station as DishStation) || 'kitchen_cold',
+            isAvailable: m.is_available ?? true,
+            isFeatured: m.is_featured ?? false,
+            preparationMinutes: m.preparation_minutes || 12,
+            tags: m.tags || ['Especialidad de la Casa'],
+            modifierGroups: m.modifier_groups || []
+          }));
+          setMenuItems(mappedMenu);
+        } else if (!menuErr && cloudMenu && cloudMenu.length === 0) {
+          const menuToInsert = INITIAL_MENU_ITEMS.map(m => ({
+            id: m.id,
+            category_id: m.categoryId,
+            name: m.name,
+            description: m.description,
+            price: m.price,
+            image_url: m.imageUrl || null,
+            station: m.station,
+            is_available: m.isAvailable,
+            is_featured: m.isFeatured || false
+          }));
+          await supabase!.from('menu_items').insert(menuToInsert);
+        }
       } catch (err) {
-        console.error('Error sincronizando Supabase:', err);
+        console.error('Error sincronizando con Supabase:', err);
       }
     }
 
     syncCloudData();
 
-    // 2. Suscripción en Tiempo Real (WebSockets)
-    const channel = supabase
-      .channel('schema-db-changes')
+    // 2. Suscripción en Tiempo Real Global (WebSockets para Mesas y Órdenes)
+    const tablesChannel = supabase
+      .channel('realtime_tables_channel')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tables' },
@@ -426,8 +550,11 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
               currentOrderId: updated.current_order_id,
               seatedAt: updated.seated_at,
               openedTimestamp: updated.opened_timestamp,
+              openedByUserId: updated.opened_by_user_id,
               openedByUserName: updated.opened_by_user_name,
+              assignedWaiterId: updated.assigned_waiter_id,
               assignedWaiterName: updated.assigned_waiter_name,
+              closedByUserId: updated.closed_by_user_id,
               closedByUserName: updated.closed_by_user_name,
               closedAt: updated.closed_at
             } : t));
@@ -445,6 +572,64 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
                 currentOrderId: added.current_order_id
               }];
             });
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            const deleted = payload.old as any;
+            setTables(prev => prev.filter(t => t.id !== deleted.id));
+          }
+        }
+      )
+      .subscribe();
+
+    const ordersChannel = supabase
+      .channel('realtime_orders_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const newOrder = payload.new as any;
+            setOrders(prev => {
+              if (prev.some(o => o.id === newOrder.id)) return prev;
+              return [...prev, {
+                id: newOrder.id,
+                code: newOrder.code,
+                tableId: newOrder.table_id,
+                tableNumber: newOrder.table_number,
+                waiterId: newOrder.waiter_id,
+                waiterName: newOrder.waiter_name,
+                openedByUserId: newOrder.opened_by_user_id,
+                openedByUserName: newOrder.opened_by_user_name,
+                closedByUserId: newOrder.closed_by_user_id,
+                closedByUserName: newOrder.closed_by_user_name,
+                closedAt: newOrder.closed_at,
+                orderType: newOrder.order_type,
+                items: Array.isArray(newOrder.items) ? newOrder.items : [],
+                subtotal: Number(newOrder.subtotal) || 0,
+                tax: Number(newOrder.tax) || 0,
+                tip: Number(newOrder.tip) || 0,
+                discount: Number(newOrder.discount) || 0,
+                total: Number(newOrder.total) || 0,
+                status: newOrder.status,
+                paymentMethod: newOrder.payment_method,
+                invoiceType: newOrder.invoice_type,
+                createdAt: newOrder.created_at
+              }];
+            });
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            const updated = payload.new as any;
+            setOrders(prev => prev.map(o => o.id === updated.id ? {
+              ...o,
+              status: updated.status,
+              items: Array.isArray(updated.items) ? updated.items : o.items,
+              subtotal: Number(updated.subtotal) || o.subtotal,
+              tax: Number(updated.tax) || o.tax,
+              tip: Number(updated.tip) || o.tip,
+              discount: Number(updated.discount) || o.discount,
+              total: Number(updated.total) || o.total,
+              paymentMethod: updated.payment_method || o.paymentMethod,
+              invoiceType: updated.invoice_type || o.invoiceType,
+              closedAt: updated.closed_at || o.closedAt
+            } : o));
           }
         }
       )
@@ -452,7 +637,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
-      supabase?.removeChannel(channel);
+      supabase?.removeChannel(tablesChannel);
+      supabase?.removeChannel(ordersChannel);
     };
   }, []);
 
@@ -525,6 +711,9 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           'Actualización de Stock en Vivo'
         );
         addAuditLog('stock_depleted', `${dish.name} cambiado a ${nextState ? 'Disponible' : 'Agotado'}`);
+        if (supabase) {
+          supabase.from('menu_items').update({ is_available: nextState }).eq('id', dishId).then();
+        }
         return { ...dish, isAvailable: nextState };
       }
       return dish;
@@ -534,15 +723,39 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const updateDish = (dish: MenuItem) => {
     setMenuItems(prev => prev.map(d => d.id === dish.id ? dish : d));
     showToast('success', `Plato "${dish.name}" actualizado`);
+    if (supabase) {
+      supabase.from('menu_items').update({
+        name: dish.name,
+        description: dish.description,
+        price: dish.price,
+        station: dish.station,
+        is_available: dish.isAvailable,
+        is_featured: dish.isFeatured
+      }).eq('id', dish.id).then();
+    }
   };
 
   const addDish = (dish: MenuItem) => {
     setMenuItems(prev => [...prev, dish]);
     showToast('success', `Nuevo plato "${dish.name}" agregado a la carta`);
+    if (supabase) {
+      supabase.from('menu_items').insert({
+        id: dish.id,
+        category_id: dish.categoryId,
+        name: dish.name,
+        description: dish.description,
+        price: dish.price,
+        image_url: dish.imageUrl || null,
+        station: dish.station,
+        is_available: dish.isAvailable,
+        is_featured: dish.isFeatured || false
+      }).then();
+    }
   };
 
   // Gestión de Mesas con Trazabilidad de Personal y Horas
   const openTable = (tableId: string, customerCount: number, waiterId: string): string => {
+    const targetTable = tables.find(t => t.id === tableId);
     const waiter = staff.find(s => s.id === waiterId) || currentUser || staff[0];
     const orderCode = `CMD-${Math.floor(100 + Math.random() * 900)}`;
     const newOrderId = `cmd-${Date.now()}`;
@@ -554,7 +767,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       id: newOrderId,
       code: orderCode,
       tableId,
-      tableNumber: tables.find(t => t.id === tableId)?.number || 'M-??',
+      tableNumber: targetTable?.number || 'M-??',
       waiterId: waiter.id,
       waiterName: waiter.name,
       openedByUserId: waiter.id,
@@ -572,24 +785,25 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       createdAt: now.toISOString()
     };
 
+    const updatedTable: Table = {
+      ...(targetTable || { id: tableId, number: 'M-??', zone: 'Principal', capacity: 4 }),
+      status: 'occupied',
+      currentOrderId: newOrderId,
+      customerCount,
+      seatedAt: formattedSeatedAt,
+      openedTimestamp,
+      assignedWaiterId: waiter.id,
+      assignedWaiterName: waiter.name,
+      openedByUserId: waiter.id,
+      openedByUserName: waiter.name
+    };
+
     setOrders(prev => [...prev, newOrder]);
-    setTables(prev => prev.map(tbl => {
-      if (tbl.id === tableId) {
-        return {
-          ...tbl,
-          status: 'occupied',
-          currentOrderId: newOrderId,
-          customerCount,
-          seatedAt: formattedSeatedAt,
-          openedTimestamp,
-          assignedWaiterId: waiter.id,
-          assignedWaiterName: waiter.name,
-          openedByUserId: waiter.id,
-          openedByUserName: waiter.name
-        };
-      }
-      return tbl;
-    }));
+    setTables(prev => prev.map(tbl => tbl.id === tableId ? updatedTable : tbl));
+
+    // Persistir en Supabase en la nube
+    persistOrderToCloud(newOrder);
+    persistTableToCloud(updatedTable);
 
     sounds.playClick();
     showToast('success', `Mesa ${newOrder.tableNumber} activada por ${waiter.name} a las ${formattedSeatedAt} (${customerCount} comensales)`);
@@ -641,17 +855,17 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       setOrders(prev => [...prev, targetOrder]);
     }
 
-    // Actualizar estado de la mesa a 'in_kitchen' (amarillo)
-    setTables(prev => prev.map(tbl => {
-      if (tbl.id === tableId) {
-        return {
-          ...tbl,
-          status: 'in_kitchen',
-          currentOrderId: targetOrder.id
-        };
-      }
-      return tbl;
-    }));
+    const updatedTable: Table = {
+      ...(table || { id: tableId, number: 'M-??', zone: 'Principal', capacity: 4 }),
+      status: 'in_kitchen',
+      currentOrderId: targetOrder.id
+    };
+
+    setTables(prev => prev.map(tbl => tbl.id === tableId ? updatedTable : tbl));
+
+    // Persistir en Supabase
+    persistOrderToCloud(targetOrder);
+    persistTableToCloud(updatedTable);
 
     sounds.playKitchenBell();
     showToast('success', `Comanda enviada a cocina (${items.length} platos) para Mesa ${table?.number}`);
@@ -672,30 +886,48 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     }
 
     const orderId = sourceTable.currentOrderId;
+    const existingOrder = orders.find(o => o.id === orderId);
 
-    setOrders(prev => prev.map(o => {
-      if (o.id === orderId) {
-        return { ...o, tableId: targetId, tableNumber: targetTable.number };
-      }
-      return o;
-    }));
+    const updatedOrder = existingOrder ? { ...existingOrder, tableId: targetId, tableNumber: targetTable.number } : null;
+    if (updatedOrder) {
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+      persistOrderToCloud(updatedOrder);
+    }
+
+    const updatedSourceTable: Table = {
+      ...sourceTable,
+      status: 'available',
+      currentOrderId: undefined,
+      customerCount: undefined,
+      seatedAt: undefined,
+      openedTimestamp: undefined,
+      openedByUserId: undefined,
+      openedByUserName: undefined,
+      assignedWaiterId: undefined,
+      assignedWaiterName: undefined
+    };
+
+    const updatedTargetTable: Table = {
+      ...targetTable,
+      status: sourceTable.status,
+      currentOrderId: orderId,
+      customerCount: sourceTable.customerCount,
+      seatedAt: sourceTable.seatedAt,
+      openedTimestamp: sourceTable.openedTimestamp,
+      openedByUserId: sourceTable.openedByUserId,
+      openedByUserName: sourceTable.openedByUserName,
+      assignedWaiterId: sourceTable.assignedWaiterId,
+      assignedWaiterName: sourceTable.assignedWaiterName
+    };
 
     setTables(prev => prev.map(tbl => {
-      if (tbl.id === sourceId) {
-        return { ...tbl, status: 'available', currentOrderId: undefined, customerCount: undefined, seatedAt: undefined };
-      }
-      if (tbl.id === targetId) {
-        return {
-          ...tbl,
-          status: sourceTable.status,
-          currentOrderId: orderId,
-          customerCount: sourceTable.customerCount,
-          seatedAt: sourceTable.seatedAt,
-          assignedWaiterId: sourceTable.assignedWaiterId
-        };
-      }
+      if (tbl.id === sourceId) return updatedSourceTable;
+      if (tbl.id === targetId) return updatedTargetTable;
       return tbl;
     }));
+
+    persistTableToCloud(updatedSourceTable);
+    persistTableToCloud(updatedTargetTable);
 
     sounds.playClick();
     showToast('success', `Consumo transferido de Mesa ${sourceTable.number} a Mesa ${targetTable.number}`);
@@ -704,34 +936,37 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   };
 
   const requestTableBill = (tableId: string) => {
-    setTables(prev => prev.map(tbl => {
-      if (tbl.id === tableId) {
-        return { ...tbl, status: 'bill_requested' };
-      }
-      return tbl;
-    }));
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+      const updated: Table = { ...table, status: 'bill_requested' };
+      setTables(prev => prev.map(tbl => tbl.id === tableId ? updated : tbl));
+      persistTableToCloud(updated);
+    }
     sounds.playClick();
     showToast('info', 'Pre-cuenta solicitada. La mesa ahora está en color azul.');
   };
 
   const cleanTable = (tableId: string) => {
-    setTables(prev => prev.map(tbl => {
-      if (tbl.id === tableId) {
-        return { 
-          ...tbl, 
-          status: 'available', 
-          currentOrderId: undefined, 
-          customerCount: undefined, 
-          seatedAt: undefined,
-          openedTimestamp: undefined,
-          openedByUserId: undefined,
-          openedByUserName: undefined,
-          assignedWaiterId: undefined,
-          assignedWaiterName: undefined
-        };
-      }
-      return tbl;
-    }));
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+      const updated: Table = { 
+        ...table, 
+        status: 'available', 
+        currentOrderId: undefined, 
+        customerCount: undefined, 
+        seatedAt: undefined,
+        openedTimestamp: undefined,
+        openedByUserId: undefined,
+        openedByUserName: undefined,
+        assignedWaiterId: undefined,
+        assignedWaiterName: undefined,
+        closedByUserId: undefined,
+        closedByUserName: undefined,
+        closedAt: undefined
+      };
+      setTables(prev => prev.map(tbl => tbl.id === tableId ? updated : tbl));
+      persistTableToCloud(updated);
+    }
     sounds.playClick();
     showToast('success', 'Mesa limpia y disponible para nuevos clientes');
   };
@@ -746,13 +981,19 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       status: 'available'
     };
     setTables(prev => [...prev, newTable]);
+    persistTableToCloud(newTable);
     sounds.playClick();
     showToast('success', `Nueva mesa "${newTable.number}" creada en ${newTable.zone}`);
     addAuditLog('system_action', `Mesa ${newTable.number} agregada al salón ${newTable.zone}`);
   };
 
   const updateTable = (tableId: string, updates: Partial<Table>) => {
-    setTables(prev => prev.map(tbl => tbl.id === tableId ? { ...tbl, ...updates } : tbl));
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+      const updated = { ...table, ...updates };
+      setTables(prev => prev.map(tbl => tbl.id === tableId ? updated : tbl));
+      persistTableToCloud(updated);
+    }
     sounds.playClick();
     showToast('success', 'Mesa actualizada correctamente');
   };
@@ -765,6 +1006,9 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       return false;
     }
     setTables(prev => prev.filter(t => t.id !== tableId));
+    if (supabase) {
+      supabase.from('tables').delete().eq('id', tableId).then();
+    }
     sounds.playClick();
     showToast('info', `Mesa ${table.number} eliminada del plano`);
     addAuditLog('system_action', `Mesa ${table.number} eliminada`);
@@ -782,12 +1026,37 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     setMenuItems(INITIAL_MENU_ITEMS);
     setActiveShift(INITIAL_SHIFT);
     setActiveZone('all');
+    
+    // Resincronizar mesas demo a Supabase
+    if (supabase) {
+      supabase.from('tables').delete().neq('id', 'null').then(() => {
+        const tablesToInsert = INITIAL_TABLES.map(t => ({
+          id: t.id,
+          number: t.number,
+          zone: t.zone,
+          capacity: t.capacity,
+          status: t.status,
+          customer_count: t.customerCount || null,
+          current_order_id: t.currentOrderId || null,
+          seated_at: t.seatedAt || null,
+          opened_timestamp: t.openedTimestamp || null,
+          opened_by_user_id: t.openedByUserId || null,
+          opened_by_user_name: t.openedByUserName || null,
+          assigned_waiter_id: t.assignedWaiterId || null,
+          assigned_waiter_name: t.assignedWaiterName || null
+        }));
+        supabase!.from('tables').insert(tablesToInsert).then();
+      });
+    }
+
     sounds.playClick();
     showToast('success', 'Datos y mesas restaurados al estado original verificado');
   };
 
   // KDS & Platos
   const updateOrderItemStatus = (orderId: string, itemId: string, status: OrderItemStatus) => {
+    let updatedTargetOrder: Order | null = null;
+
     setOrders(prev => prev.map(order => {
       if (order.id === orderId) {
         const updatedItems = order.items.map(item => {
@@ -803,10 +1072,15 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           }
           return item;
         });
-        return { ...order, items: updatedItems };
+        updatedTargetOrder = { ...order, items: updatedItems };
+        return updatedTargetOrder;
       }
       return order;
     }));
+
+    if (updatedTargetOrder) {
+      persistOrderToCloud(updatedTargetOrder);
+    }
 
     if (status === 'ready') {
       sounds.playKitchenBell();
@@ -817,6 +1091,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   };
 
   const cancelOrderItem = (orderId: string, itemId: string, reason: string, authorizedBy: string) => {
+    let updatedTargetOrder: Order | null = null;
+
     setOrders(prev => prev.map(order => {
       if (order.id === orderId) {
         const cancelledItem = order.items.find(i => i.id === itemId);
@@ -829,16 +1105,21 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           { orderId, itemId, authorizedBy, itemPrice: cancelledItem?.totalPrice }
         );
 
-        return {
+        updatedTargetOrder = {
           ...order,
           items: remainingItems,
           subtotal: newSubtotal,
           tax: Number((newSubtotal * 0.18).toFixed(2)),
           total: newSubtotal
         };
+        return updatedTargetOrder;
       }
       return order;
     }));
+
+    if (updatedTargetOrder) {
+      persistOrderToCloud(updatedTargetOrder);
+    }
 
     sounds.playAlert();
     showToast('warning', `Plato anulado por ${authorizedBy}. Motivo: ${reason}`, 'Control de Comandas');
@@ -887,26 +1168,25 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       closedAt: now.toISOString()
     };
 
-    // Actualizar orden
-    setOrders(prev => prev.map(o => o.id === completedOrder.id ? completedOrder : o));
+    const updatedTable: Table = {
+      ...table,
+      status: 'cleaning',
+      currentOrderId: undefined,
+      customerCount: undefined,
+      seatedAt: undefined,
+      openedTimestamp: undefined,
+      closedByUserId: cashier.id,
+      closedByUserName: cashier.name,
+      closedAt: now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+    };
 
-    // Liberar mesa a estado 'cleaning' registrando quién cobró y quién atendió
-    setTables(prev => prev.map(tbl => {
-      if (tbl.id === tableId) {
-        return {
-          ...tbl,
-          status: 'cleaning',
-          currentOrderId: undefined,
-          customerCount: undefined,
-          seatedAt: undefined,
-          openedTimestamp: undefined,
-          closedByUserId: cashier.id,
-          closedByUserName: cashier.name,
-          closedAt: now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
-        };
-      }
-      return tbl;
-    }));
+    // Actualizar orden y mesa
+    setOrders(prev => prev.map(o => o.id === completedOrder.id ? completedOrder : o));
+    setTables(prev => prev.map(tbl => tbl.id === tableId ? updatedTable : tbl));
+
+    // Persistir en Supabase
+    persistOrderToCloud(completedOrder);
+    persistTableToCloud(updatedTable);
 
     // Actualizar ventas en la caja del turno activo
     setActiveShift(prev => {
