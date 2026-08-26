@@ -11,6 +11,10 @@ import {
   CashShift 
 } from '@/types/restaurant';
 
+// Build Version & Security Stamp
+export const SYSTEM_BUILD_VERSION = 'v2026.08.26.1510_ENTERPRISE_SECURE';
+export const BUILD_TIMESTAMP = Date.now();
+
 export const GASTRO_THEMES: Record<GastroThemePreset, { name: string; icon: string; description: string; colors: ThemeColors }> = {
   marisqueria: {
     name: 'Marisquería & Alta Cocina (ÉTERRA)',

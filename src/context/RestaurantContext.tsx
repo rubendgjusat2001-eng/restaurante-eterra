@@ -30,7 +30,8 @@ import {
   INITIAL_MENU_ITEMS, 
   INITIAL_TABLES, 
   INITIAL_PROMOTIONS, 
-  INITIAL_SHIFT 
+  INITIAL_SHIFT,
+  SYSTEM_BUILD_VERSION 
 } from '@/lib/constants';
 import { sounds } from '@/lib/utils';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -245,11 +246,21 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
 
-  // Hidratación segura del lado del cliente al cargar la app
+  // Hidratación segura del lado del cliente con detección de nueva versión del sistema
   useEffect(() => {
-    const savedUser = readSessionFromStorage();
-    if (savedUser) {
-      setCurrentUser(savedUser);
+    if (typeof window !== 'undefined') {
+      const storedVersion = localStorage.getItem('eterra_system_build_version');
+      if (storedVersion !== SYSTEM_BUILD_VERSION) {
+        // Se detectó una nueva versión / actualización desplegada desde consola o IDE
+        clearSessionFromStorage();
+        setCurrentUser(null);
+        localStorage.setItem('eterra_system_build_version', SYSTEM_BUILD_VERSION);
+      } else {
+        const savedUser = readSessionFromStorage();
+        if (savedUser) {
+          setCurrentUser(savedUser);
+        }
+      }
     }
     setIsAuthLoaded(true);
   }, []);
@@ -627,8 +638,31 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'staff_users' },
         (payload) => {
+          if (payload.new) {
+            const nu = payload.new as any;
+            if (nu.id === 'system-security') {
+              const forceTime = Number(nu.pin) || 0;
+              const clientAuthTime = Number(localStorage.getItem('eterra_active_session_auth_timestamp') || 0);
+              if (forceTime > 0 && clientAuthTime < forceTime) {
+                clearSessionFromStorage();
+                setCurrentUser(null);
+                sounds.playAlert();
+                showToast('warning', 'La sesión ha sido cerrada en todos los dispositivos por una actualización de seguridad.', 'Cierre de Sesión Global');
+              }
+              return;
+            }
+            if (nu.role === 'owner' || nu.id === 'user-owner') {
+              if (nu.pin) {
+                setOwnerPassword(nu.pin);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('eterra_owner_password', nu.pin);
+                }
+              }
+            }
+          }
           if (payload.eventType === 'INSERT' && payload.new) {
             const nu = payload.new as any;
+            if (nu.id === 'system-security' || nu.role === 'system') return;
             setStaff(prev => prev.some(u => u.id === nu.id) ? prev : [...prev, {
               id: nu.id,
               name: nu.name,
@@ -640,6 +674,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
             }]);
           } else if (payload.eventType === 'UPDATE' && payload.new) {
             const nu = payload.new as any;
+            if (nu.id === 'system-security' || nu.role === 'system') return;
             setStaff(prev => prev.map(u => u.id === nu.id ? { ...u, name: nu.name, role: nu.role, pin: nu.pin } : u));
           } else if (payload.eventType === 'DELETE' && payload.old) {
             const ou = payload.old as any;
@@ -933,6 +968,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     }
 
     // 3. Persistir en Supabase staff_users (Fuente Global de la Nube)
+    const now = Date.now();
     if (supabase && isSupabaseConfigured) {
       await supabase.from('staff_users').upsert({
         id: 'user-owner',
@@ -941,9 +977,16 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         pin: newPass,
         avatar: '👑'
       });
+
+      await supabase.from('staff_users').upsert({
+        id: 'system-security',
+        name: 'Security Directive',
+        role: 'system',
+        pin: String(now),
+        avatar: '🛡️'
+      });
     }
 
-    const now = Date.now();
     if (typeof window !== 'undefined') {
       localStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
       sessionStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
@@ -957,21 +1000,14 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
   const forceLogoutAllDevices = async (): Promise<void> => {
     const now = Date.now();
-    if (supabase) {
-      const { data: existing } = await supabase.from('restaurants').select('id').limit(1).maybeSingle();
-      if (existing?.id) {
-        await supabase.from('restaurants').update({
-          force_logout_timestamp: now,
-          updated_at: new Date().toISOString()
-        }).eq('id', existing.id);
-      } else {
-        await supabase.from('restaurants').upsert({
-          slug: 'eterra-peru',
-          name: restaurant.name,
-          force_logout_timestamp: now,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'slug' });
-      }
+    if (supabase && isSupabaseConfigured) {
+      await supabase.from('staff_users').upsert({
+        id: 'system-security',
+        name: 'Security Directive',
+        role: 'system',
+        pin: String(now),
+        avatar: '🛡️'
+      });
     }
     clearSessionFromStorage();
     setCurrentUser(null);
