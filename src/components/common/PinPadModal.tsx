@@ -124,7 +124,7 @@ export function PinPadModal() {
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2 text-center">
             Seleccionar Usuario
           </label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 max-h-36 overflow-y-auto pr-1">
             {staff.map(user => {
               const isSelected = selectedStaff?.id === user.id;
               return (
@@ -135,15 +135,15 @@ export function PinPadModal() {
                     setSelectedStaff(user);
                     setPin('');
                   }}
-                  className={`flex flex-col items-center p-2.5 rounded-2xl border transition-all text-center ${
+                  className={`flex flex-col items-center p-2.5 rounded-2xl border transition-all text-center min-w-[90px] ${
                     isSelected
                       ? 'bg-cyan-50 border-cyan-500 ring-2 ring-cyan-400/40 shadow-sm scale-105'
                       : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <span className="text-2xl mb-1">{user.avatar}</span>
-                  <span className="text-xs font-semibold truncate w-full">{user.name.split(' ')[0]}</span>
-                  <span className="text-[9px] uppercase tracking-wider text-cyan-700 truncate w-full font-bold">
+                  <span className="text-xs font-semibold truncate max-w-[80px]">{user.name.split(' ')[0]}</span>
+                  <span className="text-[9px] uppercase tracking-wider text-cyan-700 truncate max-w-[80px] font-bold">
                     {user.role === 'owner' ? 'Owner' : user.role === 'waiter_cashier' ? 'Mozo-Caja' : user.role}
                   </span>
                 </button>

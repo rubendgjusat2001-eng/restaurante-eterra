@@ -21,22 +21,45 @@ import {
   ShieldAlert,
   Bot,
   RefreshCw,
-  Award
+  Award,
+  UserPlus,
+  Trash2,
+  Utensils,
+  Plus,
+  Lock
 } from 'lucide-react';
+import { UserRole, MenuItem, DishStation } from '@/types/restaurant';
 
 export function OwnerDashboard() {
   const { 
     restaurant, 
     updateRestaurantInfo, 
     orders, 
+    categories,
     menuItems, 
+    addDish,
+    staff,
+    addStaffUser,
+    deleteStaffUser,
     auditLogs, 
     tables,
     activeShift,
     showToast 
   } = useRestaurant();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'cms' | 'audit' | 'ai_insights'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'staff' | 'dishes' | 'cms' | 'audit' | 'ai_insights'>('analytics');
+
+  // Formulario Nuevo Personal
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState<UserRole>('waiter');
+  const [newStaffPin, setNewStaffPin] = useState('');
+
+  // Formulario Nuevo Plato
+  const [newDishName, setNewDishName] = useState('');
+  const [newDishCat, setNewDishCat] = useState(categories[0]?.id || 'cat-01');
+  const [newDishPrice, setNewDishPrice] = useState('35.00');
+  const [newDishStation, setNewDishStation] = useState<DishStation>('kitchen_cold');
+  const [newDishDesc, setNewDishDesc] = useState('');
 
   // Formulario CMS del Dueño
   const [cmsName, setCmsName] = useState(restaurant.name);
@@ -135,13 +158,13 @@ export function OwnerDashboard() {
         </div>
 
         {/* Pestañas */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg text-xs">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg text-xs overflow-x-auto">
           <button
             onClick={() => {
               sounds.playClick();
               setActiveTab('analytics');
             }}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap ${
               activeTab === 'analytics' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -150,9 +173,33 @@ export function OwnerDashboard() {
           <button
             onClick={() => {
               sounds.playClick();
+              setActiveTab('staff');
+            }}
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+              activeTab === 'staff' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-3 h-3 text-cyan-700" />
+            Personal ({staff.length})
+          </button>
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setActiveTab('dishes');
+            }}
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+              activeTab === 'dishes' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Utensils className="w-3 h-3 text-amber-600" />
+            Carta ({menuItems.length})
+          </button>
+          <button
+            onClick={() => {
+              sounds.playClick();
               setActiveTab('ai_insights');
             }}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
               activeTab === 'ai_insights' ? 'bg-cyan-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -164,7 +211,7 @@ export function OwnerDashboard() {
               sounds.playClick();
               setActiveTab('cms');
             }}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
               activeTab === 'cms' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -176,7 +223,7 @@ export function OwnerDashboard() {
               sounds.playClick();
               setActiveTab('audit');
             }}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-md font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
               activeTab === 'audit' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -455,6 +502,312 @@ export function OwnerDashboard() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB: GESTIÓN DE PERSONAL & ROLES CON PIN */}
+      {activeTab === 'staff' && (
+        <div className="space-y-6 animate-in fade-in max-w-5xl mx-auto">
+          {/* Formulario Crear Personal */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <UserPlus className="w-4 h-4 text-cyan-700" />
+              Registrar Nuevo Colaborador / Personal
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newStaffName.trim()) {
+                  showToast('error', 'Ingrese el nombre del colaborador');
+                  return;
+                }
+                if (!newStaffPin.trim() || newStaffPin.length < 4) {
+                  showToast('error', 'El PIN debe ser de 4 dígitos numéricos');
+                  return;
+                }
+                addStaffUser({
+                  name: newStaffName.trim(),
+                  role: newStaffRole,
+                  pin: newStaffPin.trim()
+                });
+                setNewStaffName('');
+                setNewStaffPin('');
+              }}
+              className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nombre Completo</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Lucía Benítez"
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Rol / Cargo</label>
+                <select
+                  value={newStaffRole}
+                  onChange={(e) => setNewStaffRole(e.target.value as UserRole)}
+                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                >
+                  <option value="waiter">Mozo (Toma de Comandas & Salón)</option>
+                  <option value="cashier">Cajero (Cobros & Arqueo de Turno)</option>
+                  <option value="waiter_cashier">Mozo & Cajero (Híbrido)</option>
+                  <option value="kitchen">Cocinero (KDS Cocina)</option>
+                  <option value="bar">Bartender (KDS Bar)</option>
+                  <option value="manager">Administrador de Salón</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">PIN de Acceso (4 Dígitos)</label>
+                <div className="relative">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="Ej: 5555"
+                    value={newStaffPin}
+                    onChange={(e) => setNewStaffPin(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-slate-50 border border-slate-200 pl-8 pr-3 py-2 rounded-lg text-xs text-slate-900 font-mono tracking-widest focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="py-2.5 px-4 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Registrar
+              </button>
+            </form>
+          </div>
+
+          {/* Lista de Personal Activo */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <Users className="w-4 h-4 text-cyan-700" />
+              Equipo y Cuentas de Acceso Activas ({staff.length})
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {staff.map((member) => {
+                const isOwner = member.role === 'owner';
+                let roleBadgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
+                let roleLabel = 'Personal';
+
+                if (member.role === 'owner') {
+                  roleBadgeColor = 'bg-amber-100 text-amber-900 border-amber-300';
+                  roleLabel = 'Dueño / Propietario';
+                } else if (member.role === 'manager') {
+                  roleBadgeColor = 'bg-blue-100 text-blue-900 border-blue-200';
+                  roleLabel = 'Administrador';
+                } else if (member.role === 'cashier' || member.role === 'waiter_cashier') {
+                  roleBadgeColor = 'bg-emerald-100 text-emerald-900 border-emerald-200';
+                  roleLabel = member.role === 'cashier' ? 'Cajero' : 'Mozo / Cajero';
+                } else if (member.role === 'waiter') {
+                  roleBadgeColor = 'bg-purple-100 text-purple-900 border-purple-200';
+                  roleLabel = 'Mozo de Salón';
+                } else if (member.role === 'kitchen') {
+                  roleBadgeColor = 'bg-orange-100 text-orange-900 border-orange-200';
+                  roleLabel = 'Cocinero';
+                } else if (member.role === 'bar') {
+                  roleBadgeColor = 'bg-pink-100 text-pink-900 border-pink-200';
+                  roleLabel = 'Bartender';
+                }
+
+                return (
+                  <div
+                    key={member.id}
+                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-base font-bold shadow-2xs">
+                        {member.avatar || '👤'}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">{member.name}</h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${roleBadgeColor}`}>
+                            {roleLabel}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400">PIN: ****</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!isOwner && (
+                      <button
+                        onClick={() => deleteStaffUser(member.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Eliminar colaborador"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: GESTIÓN DE CARTA & PLATOS */}
+      {activeTab === 'dishes' && (
+        <div className="space-y-6 animate-in fade-in max-w-5xl mx-auto">
+          {/* Formulario Añadir Plato */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <Plus className="w-4 h-4 text-cyan-700" />
+              Añadir Nuevo Plato a la Carta
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newDishName.trim()) {
+                  showToast('error', 'Ingrese el nombre del plato');
+                  return;
+                }
+                const priceNum = parseFloat(newDishPrice);
+                if (isNaN(priceNum) || priceNum <= 0) {
+                  showToast('error', 'Ingrese un precio válido');
+                  return;
+                }
+                const newDish: MenuItem = {
+                  id: `dish-${Date.now()}`,
+                  categoryId: newDishCat,
+                  name: newDishName.trim(),
+                  description: newDishDesc.trim() || 'Elaborado con ingredientes frescos de primera calidad.',
+                  price: priceNum,
+                  costPrice: Math.round(priceNum * 0.35),
+                  imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
+                  station: newDishStation,
+                  isAvailable: true,
+                  isFeatured: false,
+                  preparationMinutes: 10,
+                  tags: ['Carta Nueva'],
+                  modifierGroups: []
+                };
+                addDish(newDish);
+                setNewDishName('');
+                setNewDishDesc('');
+                showToast('success', `Plato "${newDish.name}" agregado a la carta`);
+              }}
+              className="space-y-3"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nombre del Plato</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Ceviche Mixto Especial"
+                    value={newDishName}
+                    onChange={(e) => setNewDishName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Categoría</label>
+                  <select
+                    value={newDishCat}
+                    onChange={(e) => setNewDishCat(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Precio (PEN S/.)</label>
+                  <input
+                    type="number"
+                    step="0.50"
+                    placeholder="45.00"
+                    value={newDishPrice}
+                    onChange={(e) => setNewDishPrice(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Estación de Cocina</label>
+                  <select
+                    value={newDishStation}
+                    onChange={(e) => setNewDishStation(e.target.value as DishStation)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  >
+                    <option value="kitchen_cold">Cocina Fría (Ceviches, Entradas)</option>
+                    <option value="kitchen_hot">Cocina Caliente (Brasas, Wok, Sopas)</option>
+                    <option value="bar">Bar & Coctelería</option>
+                    <option value="dessert">Postres</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Descripción / Ingredientes</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Pescado fresco, calamar, pulpo, leche de tigre..."
+                    value={newDishDesc}
+                    onChange={(e) => setNewDishDesc(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="py-2.5 px-4 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Añadir Plato
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Lista de Platos en Carta */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <Utensils className="w-4 h-4 text-cyan-700" />
+              Platos Registrados en la Carta ({menuItems.length})
+            </h3>
+            {menuItems.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 border border-dashed border-slate-200 rounded-xl p-6">
+                <Utensils className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <h4 className="text-xs font-bold text-slate-800">La carta está vacía</h4>
+                <p className="text-[11px] text-slate-500 mt-1">Usa el formulario superior para añadir los primeros platos de tu restaurante.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {menuItems.map((dish) => (
+                  <div
+                    key={dish.id}
+                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between h-28 shadow-2xs"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold uppercase text-cyan-800">
+                          {dish.station === 'kitchen_cold' ? '❄️ Fría' : dish.station === 'kitchen_hot' ? '🔥 Caliente' : '🍹 Bar'}
+                        </span>
+                        <span className="text-xs font-black font-mono text-slate-900">{formatMoney(dish.price)}</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{dish.name}</h4>
+                      <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5">{dish.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

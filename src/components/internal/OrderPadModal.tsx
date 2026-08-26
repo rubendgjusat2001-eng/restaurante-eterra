@@ -23,7 +23,8 @@ import {
   Mic,
   MicOff,
   Volume2,
-  Tag
+  Tag,
+  Utensils
 } from 'lucide-react';
 
 interface OrderPadModalProps {
@@ -423,41 +424,49 @@ export function OrderPadModal({ table, isOpen, onClose, onOpenTransfer }: OrderP
 
             {/* Grid de Platos para Toma Rápida */}
             <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-1">
-              {filteredDishes.map(dish => (
-                <button
-                  key={dish.id}
-                  onClick={() => handleAddDishToDraft(dish)}
-                  disabled={!dish.isAvailable}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between h-32 relative overflow-hidden group ${
-                    dish.isAvailable
-                      ? 'bg-white border-slate-200 hover:border-cyan-500 hover:shadow-sm active:scale-98'
-                      : 'bg-slate-100 border-slate-200 opacity-40 cursor-not-allowed'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-800">
-                        {dish.station === 'kitchen_cold' ? '❄️ Fría' : dish.station === 'kitchen_hot' ? '🔥 Caliente' : '🍹 Bar'}
-                      </span>
-                      {dish.modifierGroups && dish.modifierGroups.length > 0 && (
-                        <span className="text-[9px] bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded font-semibold border border-amber-200">
-                          Opciones
+              {filteredDishes.length === 0 ? (
+                <div className="col-span-full py-12 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center">
+                  <Utensils className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-800">Aún no hay platos registrados en esta categoría</p>
+                  <p className="text-[11px] text-slate-500 mt-1">El administrador puede agregar platos y precios desde la sección de Menú.</p>
+                </div>
+              ) : (
+                filteredDishes.map(dish => (
+                  <button
+                    key={dish.id}
+                    onClick={() => handleAddDishToDraft(dish)}
+                    disabled={!dish.isAvailable}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between h-32 relative overflow-hidden group ${
+                      dish.isAvailable
+                        ? 'bg-white border-slate-200 hover:border-cyan-500 hover:shadow-sm active:scale-98'
+                        : 'bg-slate-100 border-slate-200 opacity-40 cursor-not-allowed'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-800">
+                          {dish.station === 'kitchen_cold' ? '❄️ Fría' : dish.station === 'kitchen_hot' ? '🔥 Caliente' : '🍹 Bar'}
                         </span>
-                      )}
+                        {dish.modifierGroups && dish.modifierGroups.length > 0 && (
+                          <span className="text-[9px] bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded font-semibold border border-amber-200">
+                            Opciones
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
+                        {dish.name}
+                      </h4>
                     </div>
-                    <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
-                      {dish.name}
-                    </h4>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 mt-auto">
-                    <span className="text-xs font-black text-slate-900 font-mono">{formatMoney(dish.price)}</span>
-                    <div className="w-5 h-5 rounded bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold text-xs group-hover:bg-cyan-700 group-hover:text-white transition-colors">
-                      +
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 mt-auto">
+                      <span className="text-xs font-black text-slate-900 font-mono">{formatMoney(dish.price)}</span>
+                      <div className="w-5 h-5 rounded bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold text-xs group-hover:bg-cyan-700 group-hover:text-white transition-colors">
+                        +
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
 
           </div>

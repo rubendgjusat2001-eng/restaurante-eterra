@@ -65,6 +65,9 @@ interface RestaurantContextType {
   loginWithPin: (pin: string, user?: StaffUser) => boolean;
   switchUser: (user: StaffUser) => void;
   logoutStaff: () => void;
+  addStaffUser: (user: { name: string; role: UserRole; pin: string; avatar?: string }) => void;
+  deleteStaffUser: (userId: string) => void;
+  verifySupervisorPin: (pin: string) => boolean;
   isPinModalOpen: boolean;
   setIsPinModalOpen: (open: boolean) => void;
   pendingActionUser: StaffUser | null;
@@ -165,11 +168,30 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     return INITIAL_RESTAURANT;
   });
 
-  // Estado de Personal
-  const [staff] = useState<StaffUser[]>(STAFF_MEMBERS);
+  const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => STAFF_MEMBERS[0]); // Default Rubén (Owner)
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
+
+  // Cargar Staff de Supabase si existe
+  useEffect(() => {
+    if (!supabase || !isSupabaseConfigured) return;
+    supabase.from('staff_users').select('*').then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        const mappedStaff: StaffUser[] = data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          role: u.role,
+          pin: u.pin,
+          avatar: u.avatar || '👤',
+          color: 'from-slate-600 to-slate-800',
+          active: true
+        }));
+        setStaff(mappedStaff);
+        if (!currentUser) setCurrentUser(mappedStaff[0]);
+      }
+    });
+  }, []);
 
   // Menú y Categorías
   const [categories] = useState<MenuCategory[]>(MENU_CATEGORIES);
@@ -195,68 +217,15 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   });
   const [activeZone, setActiveZone] = useState<string>('all');
 
-  // Comandas Iniciales
+  // Comandas y Pedidos
   const [orders, setOrders] = useState<Order[]>(() => {
-    // Comanda semilla de prueba para Mesa 2
-    const seedOrder: Order = {
-      id: 'cmd-101',
-      code: 'CMD-101',
-      tableId: 'tbl-02',
-      tableNumber: 'M-02',
-      waiterId: 'user-04',
-      waiterName: 'Mateo Morales',
-      orderType: 'dine_in',
-      status: 'active',
-      subtotal: 194.00,
-      tax: 34.92,
-      tip: 0,
-      discount: 0,
-      total: 194.00,
-      paymentMethod: 'pending',
-      createdAt: new Date().toISOString(),
-      items: [
-        {
-          id: 'item-01',
-          menuItemId: 'dish-01',
-          name: 'Ceviche ÉTERRA Clásico',
-          quantity: 2,
-          unitPrice: 58.00,
-          totalPrice: 116.00,
-          station: 'kitchen_cold',
-          course: 'starter',
-          status: 'preparing',
-          selectedModifiers: [{ groupId: 'mod-picante', groupName: 'Nivel de Picante', optionId: 'p2', optionName: 'Picante Medio (Clásico)', extraPrice: 0 }],
-          orderedAt: new Date(Date.now() - 6 * 60000).toISOString()
-        },
-        {
-          id: 'item-02',
-          menuItemId: 'dish-07',
-          name: 'Pisco Sour ÉTERRA Reserva 1615',
-          quantity: 2,
-          unitPrice: 34.00,
-          totalPrice: 68.00,
-          station: 'bar',
-          course: 'drink',
-          status: 'ready',
-          selectedModifiers: [{ groupId: 'mod-pisco', groupName: 'Variedad', optionId: 'ps1', optionName: 'Clásico Quebranta', extraPrice: 0 }],
-          orderedAt: new Date(Date.now() - 6 * 60000).toISOString()
-        },
-        {
-          id: 'item-03',
-          menuItemId: 'dish-08',
-          name: 'Chilcano de Pisco con Macerado',
-          quantity: 1,
-          unitPrice: 10.00,
-          totalPrice: 10.00,
-          station: 'bar',
-          course: 'drink',
-          status: 'served',
-          selectedModifiers: [],
-          orderedAt: new Date(Date.now() - 6 * 60000).toISOString()
-        }
-      ]
-    };
-    return [seedOrder];
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('eterra_orders');
+      if (saved) {
+        try { return JSON.parse(saved); } catch {}
+      }
+    }
+    return [];
   });
 
   // Caja & Turnos
@@ -264,25 +233,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const [shiftHistory, setShiftHistory] = useState<CashShift[]>([]);
 
   // Reservas & Promociones
-  const [reservations, setReservations] = useState<Reservation[]>([
-    {
-      id: 'res-01',
-      code: 'RES-801',
-      customerName: 'Dra. Patricia Alarcón',
-      customerPhone: '+51 984 123 456',
-      customerEmail: 'patricia@clinica.pe',
-      partySize: 4,
-      reservationDate: new Date().toISOString().split('T')[0],
-      reservationTime: '14:00',
-      zonePreference: 'Terraza Marina',
-      status: 'confirmed',
-      specialRequests: 'Mesa con vista al malecón. Es aniversario.',
-      depositAmount: 50.00,
-      paymentStatus: 'paid',
-      createdAt: new Date().toISOString()
-    }
-  ]);
-  const [promotions, setPromotions] = useState<Promotion[]>(INITIAL_PROMOTIONS);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
 
   // Carrito Público
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -421,7 +373,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       try {
         // Cargar Mesas
         const { data: cloudTables, error: tableErr } = await supabase!.from('tables').select('*');
-        if (!tableErr && cloudTables && cloudTables.length > 0 && isMounted) {
+        if (!tableErr && cloudTables && isMounted) {
           const mappedTables: Table[] = cloudTables.map((t: any) => ({
             id: t.id,
             number: t.number,
@@ -441,29 +393,11 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
             closedAt: t.closed_at
           }));
           setTables(mappedTables);
-        } else if (!tableErr && cloudTables && cloudTables.length === 0) {
-          // Sembrar datos iniciales de mesas
-          const tablesToInsert = INITIAL_TABLES.map(t => ({
-            id: t.id,
-            number: t.number,
-            zone: t.zone,
-            capacity: t.capacity,
-            status: t.status,
-            customer_count: t.customerCount || null,
-            current_order_id: t.currentOrderId || null,
-            seated_at: t.seatedAt || null,
-            opened_timestamp: t.openedTimestamp || null,
-            opened_by_user_id: t.openedByUserId || null,
-            opened_by_user_name: t.openedByUserName || null,
-            assigned_waiter_id: t.assignedWaiterId || null,
-            assigned_waiter_name: t.assignedWaiterName || null
-          }));
-          await supabase!.from('tables').insert(tablesToInsert);
         }
 
         // Cargar Órdenes
         const { data: cloudOrders, error: orderErr } = await supabase!.from('orders').select('*');
-        if (!orderErr && cloudOrders && cloudOrders.length > 0 && isMounted) {
+        if (!orderErr && cloudOrders && isMounted) {
           const mappedOrders: Order[] = cloudOrders.map((o: any) => ({
             id: o.id,
             code: o.code,
@@ -496,7 +430,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
 
         // Cargar Menú
         const { data: cloudMenu, error: menuErr } = await supabase!.from('menu_items').select('*');
-        if (!menuErr && cloudMenu && cloudMenu.length > 0 && isMounted) {
+        if (!menuErr && cloudMenu && isMounted) {
           const mappedMenu: MenuItem[] = cloudMenu.map((m: any) => ({
             id: m.id,
             categoryId: m.category_id,
@@ -513,19 +447,6 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
             modifierGroups: m.modifier_groups || []
           }));
           setMenuItems(mappedMenu);
-        } else if (!menuErr && cloudMenu && cloudMenu.length === 0) {
-          const menuToInsert = INITIAL_MENU_ITEMS.map(m => ({
-            id: m.id,
-            category_id: m.categoryId,
-            name: m.name,
-            description: m.description,
-            price: m.price,
-            image_url: m.imageUrl || null,
-            station: m.station,
-            is_available: m.isAvailable,
-            is_featured: m.isFeatured || false
-          }));
-          await supabase!.from('menu_items').insert(menuToInsert);
         }
       } catch (err) {
         console.error('Error sincronizando con Supabase:', err);
@@ -697,6 +618,51 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     setCurrentUser(null);
     sounds.playClick();
     showToast('info', 'Sesión de personal cerrada');
+  };
+
+  const addStaffUser = (newUser: { name: string; role: UserRole; pin: string; avatar?: string }) => {
+    const created: StaffUser = {
+      id: `user-${Date.now()}`,
+      name: newUser.name,
+      role: newUser.role,
+      pin: newUser.pin,
+      avatar: newUser.avatar || '👤',
+      color: 'from-slate-600 to-slate-800',
+      active: true
+    };
+    setStaff(prev => [...prev, created]);
+    if (supabase) {
+      supabase.from('staff_users').insert({
+        id: created.id,
+        name: created.name,
+        role: created.role,
+        pin: created.pin,
+        avatar: created.avatar
+      }).then();
+    }
+    sounds.playClick();
+    showToast('success', `Personal ${created.name} (${created.role.toUpperCase()}) registrado`);
+    addAuditLog('system_action', `Nuevo personal registrado: ${created.name} (${created.role})`);
+  };
+
+  const deleteStaffUser = (userId: string) => {
+    const target = staff.find(s => s.id === userId);
+    if (target?.role === 'owner') {
+      showToast('error', 'No se puede eliminar la cuenta principal de Dueño');
+      return;
+    }
+    setStaff(prev => prev.filter(s => s.id !== userId));
+    if (supabase) {
+      supabase.from('staff_users').delete().eq('id', userId).then();
+    }
+    sounds.playClick();
+    showToast('info', `Usuario ${target?.name} eliminado`);
+    addAuditLog('system_action', `Personal eliminado: ${target?.name}`);
+  };
+
+  const verifySupervisorPin = (pin: string): boolean => {
+    const authorized = staff.find(s => (s.role === 'owner' || s.role === 'manager') && s.pin === pin && s.active);
+    return Boolean(authorized);
   };
 
   // 86-List y Menú
@@ -1461,6 +1427,9 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         loginWithPin,
         switchUser,
         logoutStaff,
+        addStaffUser,
+        deleteStaffUser,
+        verifySupervisorPin,
         isPinModalOpen,
         setIsPinModalOpen,
         pendingActionUser,
