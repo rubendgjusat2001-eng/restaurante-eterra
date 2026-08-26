@@ -32,6 +32,7 @@ import {
   INITIAL_SHIFT 
 } from '@/lib/constants';
 import { sounds } from '@/lib/utils';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export interface CartItem {
   id: string;
@@ -346,6 +347,114 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('eterra_tables', JSON.stringify(tables));
     }
   }, [tables]);
+
+  // Sincronización Inicial y Tiempo Real con Supabase (Nube)
+  useEffect(() => {
+    if (!supabase || !isSupabaseConfigured) return;
+
+    let isMounted = true;
+
+    // 1. Cargar o Sembrar Mesas en la Nube
+    async function syncCloudData() {
+      try {
+        const { data: cloudTables, error } = await supabase!.from('tables').select('*');
+        if (error) {
+          console.warn('Error al conectar con Supabase:', error.message);
+          return;
+        }
+
+        if (cloudTables && cloudTables.length > 0 && isMounted) {
+          // Mapear de formato DB a formato App
+          const mappedTables: Table[] = cloudTables.map((t: any) => ({
+            id: t.id,
+            number: t.number,
+            zone: t.zone,
+            capacity: t.capacity,
+            status: t.status,
+            customerCount: t.customer_count,
+            currentOrderId: t.current_order_id,
+            seatedAt: t.seated_at,
+            openedTimestamp: t.opened_timestamp,
+            openedByUserId: t.opened_by_user_id,
+            openedByUserName: t.opened_by_user_name,
+            assignedWaiterId: t.assigned_waiter_id,
+            assignedWaiterName: t.assigned_waiter_name,
+            closedByUserId: t.closed_by_user_id,
+            closedByUserName: t.closed_by_user_name,
+            closedAt: t.closed_at
+          }));
+          setTables(mappedTables);
+        } else if (cloudTables && cloudTables.length === 0) {
+          // Sembrar datos iniciales en la nube
+          const tablesToInsert = INITIAL_TABLES.map(t => ({
+            id: t.id,
+            number: t.number,
+            zone: t.zone,
+            capacity: t.capacity,
+            status: t.status,
+            customer_count: t.customerCount || null,
+            current_order_id: t.currentOrderId || null,
+            seated_at: t.seatedAt || null,
+            opened_timestamp: t.openedTimestamp || null,
+            opened_by_user_id: t.openedByUserId || null,
+            opened_by_user_name: t.openedByUserName || null,
+            assigned_waiter_id: t.assignedWaiterId || null,
+            assigned_waiter_name: t.assignedWaiterName || null
+          }));
+          await supabase!.from('tables').insert(tablesToInsert);
+        }
+      } catch (err) {
+        console.error('Error sincronizando Supabase:', err);
+      }
+    }
+
+    syncCloudData();
+
+    // 2. Suscripción en Tiempo Real (WebSockets)
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tables' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const updated = payload.new as any;
+            setTables(prev => prev.map(t => t.id === updated.id ? {
+              ...t,
+              status: updated.status,
+              customerCount: updated.customer_count,
+              currentOrderId: updated.current_order_id,
+              seatedAt: updated.seated_at,
+              openedTimestamp: updated.opened_timestamp,
+              openedByUserName: updated.opened_by_user_name,
+              assignedWaiterName: updated.assigned_waiter_name,
+              closedByUserName: updated.closed_by_user_name,
+              closedAt: updated.closed_at
+            } : t));
+          } else if (payload.eventType === 'INSERT' && payload.new) {
+            const added = payload.new as any;
+            setTables(prev => {
+              if (prev.some(t => t.id === added.id)) return prev;
+              return [...prev, {
+                id: added.id,
+                number: added.number,
+                zone: added.zone,
+                capacity: added.capacity,
+                status: added.status,
+                customerCount: added.customer_count,
+                currentOrderId: added.current_order_id
+              }];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase?.removeChannel(channel);
+    };
+  }, []);
 
   // Métodos de Configuración y Tema
   const setThemePreset = (preset: GastroThemePreset) => {
