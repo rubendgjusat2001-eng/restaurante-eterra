@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #0284c7;
+    --color-primary-hover: #0369a1;
+    --color-secondary: #0f172a;
+    --color-accent: #d97706;
+    --color-bg-light: #f8fafc;
+    --color-bg-card: #ffffff;
+    --color-text-main: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+  }
+
+  body {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-main);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Micro Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Industrial & High-End Architectural Card System */
+.pos-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem; /* 12px precision radius instead of huge 24-32px bubble */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.01);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pos-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+}
+
+.pos-card-active {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Mechanical Status Indicators */
+.status-stripe-available {
+  border-top: 3px solid #10b981;
+}
+
+.status-stripe-occupied {
+  border-top: 3px solid #ef4444;
+}
+
+.status-stripe-kitchen {
+  border-top: 3px solid #f59e0b;
+}
+
+.status-stripe-bill {
+  border-top: 3px solid #0284c7;
+}
+
+.status-stripe-cleaning {
+  border-top: 3px solid #94a3b8;
+}
+
+/* Authentic POS Thermal Ticket Texture */
+.ticket-paper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.ticket-paper::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: radial-gradient(circle, transparent, transparent 50%, #ffffff 50%, #ffffff 100%);
+  background-size: 10px 10px;
+}
+
+/* Segmented Control Bar */
+.segmented-control {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  padding: 0.25rem;
+}
+
+/* Tabular Numbers for POS */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
