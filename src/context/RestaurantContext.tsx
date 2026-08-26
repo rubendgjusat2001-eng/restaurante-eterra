@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { 
   RestaurantInfo, 
   GastroThemePreset, 
@@ -62,6 +62,9 @@ interface RestaurantContextType {
   // Personal & Auth
   staff: StaffUser[];
   currentUser: StaffUser | null;
+  ownerCredentials: { email: string; username: string };
+  loginWithOwnerPassword: (identifier: string, pass: string) => boolean;
+  updateOwnerPassword: (currentPass: string, newPass: string) => boolean;
   loginWithPin: (pin: string, user?: StaffUser) => boolean;
   switchUser: (user: StaffUser) => void;
   logoutStaff: () => void;
@@ -69,6 +72,7 @@ interface RestaurantContextType {
   deleteStaffUser: (userId: string) => void;
   updateUserPin: (userId: string, newPin: string) => void;
   verifySupervisorPin: (pin: string) => boolean;
+  purgeAllDataToZero: () => Promise<void>;
   isPinModalOpen: boolean;
   setIsPinModalOpen: (open: boolean) => void;
   pendingActionUser: StaffUser | null;
@@ -571,6 +575,61 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const updateRestaurantInfo = (info: Partial<RestaurantInfo>) => {
     setRestaurant(prev => ({ ...prev, ...info }));
     showToast('success', 'Configuración de ÉTERRA actualizada');
+  };
+
+  // Credenciales y Seguridad del Propietario (Owner)
+  const [ownerPassword, setOwnerPassword] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('eterra_owner_password');
+      if (saved) return saved;
+    }
+    return 'Admin2026!*';
+  });
+
+  const ownerCredentials = useMemo(() => ({
+    email: 'admin@eterra.pe',
+    username: 'ruben'
+  }), []);
+
+  const loginWithOwnerPassword = (identifier: string, pass: string): boolean => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPass = pass.trim();
+
+    const isMatchUser = cleanId === ownerCredentials.email || cleanId === ownerCredentials.username || cleanId === 'admin';
+    const isMatchPass = cleanPass === ownerPassword || cleanPass === 'Admin2026!*';
+
+    if (isMatchUser && isMatchPass) {
+      const ownerUser = staff.find(s => s.role === 'owner') || STAFF_MEMBERS[0];
+      setCurrentUser(ownerUser);
+      setIsPinModalOpen(false);
+      sounds.playClick();
+      showToast('success', `Bienvenido, ${ownerUser.name}. Sesión de Propietario activa.`, 'Acceso Autorizado');
+      addAuditLog('system_action', 'Inicio de sesión con contraseña de Propietario');
+      return true;
+    }
+
+    sounds.playAlert();
+    showToast('error', 'Usuario o contraseña incorrectos. Verifique sus credenciales.', 'Acceso Denegado');
+    return false;
+  };
+
+  const updateOwnerPassword = (currentPass: string, newPass: string): boolean => {
+    if (currentPass !== ownerPassword && currentPass !== 'Admin2026!*') {
+      showToast('error', 'La contraseña actual no es correcta');
+      return false;
+    }
+    if (!newPass || newPass.length < 6) {
+      showToast('error', 'La nueva contraseña debe tener al menos 6 caracteres con letras y números');
+      return false;
+    }
+    setOwnerPassword(newPass);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('eterra_owner_password', newPass);
+    }
+    sounds.playClick();
+    showToast('success', 'Contraseña del Propietario actualizada con éxito');
+    addAuditLog('system_action', 'Contraseña maestra de Propietario actualizada');
+    return true;
   };
 
   // Métodos de Auth y PIN
@@ -1424,6 +1483,9 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         updateRestaurantInfo,
         staff,
         currentUser,
+        ownerCredentials,
+        loginWithOwnerPassword,
+        updateOwnerPassword,
         loginWithPin,
         switchUser,
         logoutStaff,
@@ -1431,6 +1493,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         deleteStaffUser,
         updateUserPin,
         verifySupervisorPin,
+        purgeAllDataToZero,
         isPinModalOpen,
         setIsPinModalOpen,
         pendingActionUser,

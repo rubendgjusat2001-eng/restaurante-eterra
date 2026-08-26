@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { PinPadModal } from './PinPadModal';
+import { SystemSettingsModal } from '@/components/internal/SystemSettingsModal';
 import { 
   UtensilsCrossed, 
   Globe, 
@@ -14,7 +15,8 @@ import {
   UserCheck, 
   Sparkles, 
   LogOut,
-  ShoppingBag
+  ShoppingBag,
+  Settings
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
@@ -37,6 +39,7 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
   } = useRestaurant();
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -172,6 +175,21 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
+            {/* Botón Maestro de Ajustes Generales (⚙️ Exclusivo para Owner en Modo Interno) */}
+            {isInternal && currentUser?.role === 'owner' && (
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setIsSettingsModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                title="Configuración & Ajustes del Sistema"
+              >
+                <Settings className="w-3.5 h-3.5 text-cyan-700" />
+                <span className="hidden md:inline">Ajustes</span>
+              </button>
+            )}
+
             {/* Usuario Activo / Selector de PIN */}
             {currentUser ? (
               <div className={`flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-2xl border transition-colors ${
@@ -184,7 +202,7 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
                     sounds.playClick();
                     setIsPinModalOpen(true);
                   }}
-                  className="flex items-center gap-2 text-left"
+                  className="flex items-center gap-2 text-left cursor-pointer"
                   title="Cambiar de usuario con PIN"
                 >
                   <span className="text-base">{currentUser.avatar}</span>
@@ -200,8 +218,8 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
                     sounds.playClick();
                     logoutStaff();
                   }}
-                  className="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition-colors ml-1"
-                  title="Cerrar Sesión"
+                  className="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition-colors ml-1 cursor-pointer"
+                  title="Cerrar Sesión Completa"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -212,10 +230,10 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
                   sounds.playClick();
                   setIsPinModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-md shadow-cyan-600/20"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-md shadow-cyan-600/20 cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Acceder (PIN)</span>
+                <span>Acceder</span>
               </button>
             )}
           </div>
@@ -227,6 +245,12 @@ export function Navbar({ currentView, onViewChange, onOpenCart }: NavbarProps) {
       <ThemeSwitcher
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+      />
+
+      {/* Modal de Configuración General (⚙️) */}
+      <SystemSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
 
       {/* Modal de PIN Pad */}

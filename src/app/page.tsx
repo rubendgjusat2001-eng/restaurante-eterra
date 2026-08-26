@@ -20,6 +20,7 @@ import { KitchenKDS } from '@/components/internal/KitchenKDS';
 import { CashierDesk } from '@/components/internal/CashierDesk';
 import { CashDrawerModal } from '@/components/internal/CashDrawerModal';
 import { OwnerDashboard } from '@/components/internal/OwnerDashboard';
+import { SystemLoginScreen } from '@/components/common/SystemLoginScreen';
 
 export default function HomePage() {
   const { currentUser } = useRestaurant();
@@ -104,32 +105,38 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* VISTA 2: SISTEMA OPERATIVO INTERNO (POS / KDS / CAJA / OWNER ERP CON FONDO BLANCO PULCRO) */}
+      {/* VISTA 2: SISTEMA OPERATIVO INTERNO (POS / KDS / CAJA / OWNER ERP) */}
       {viewMode === 'internal' && (
-        <div className="flex-1 flex flex-col animate-in fade-in duration-300 bg-slate-50 min-h-[calc(100vh-4rem)]">
-          
-          {/* Sub-barra de Módulos Operativos */}
-          <InternalNavbar
-            activeTab={internalTab}
-            onTabChange={tab => setInternalTab(tab)}
-            onOpenCashAudit={() => setIsCashDrawerOpen(true)}
-          />
+        <>
+          {!currentUser ? (
+            <SystemLoginScreen onGoToPublic={() => setViewMode('public')} />
+          ) : (
+            <div className="flex-1 flex flex-col animate-in fade-in duration-300 bg-slate-50 min-h-[calc(100vh-4rem)]">
+              
+              {/* Sub-barra de Módulos Operativos */}
+              <InternalNavbar
+                activeTab={internalTab}
+                onTabChange={tab => setInternalTab(tab)}
+                onOpenCashAudit={() => setIsCashDrawerOpen(true)}
+              />
 
-          {/* Renderizado de Módulo Activo */}
-          <div className="flex-1">
-            {internalTab === 'waiter' && <WaiterFloorMap />}
-            {internalTab === 'kitchen' && <KitchenKDS />}
-            {internalTab === 'cashier' && <CashierDesk />}
-            {internalTab === 'owner' && <OwnerDashboard />}
-          </div>
+              {/* Renderizado de Módulo Activo */}
+              <div className="flex-1">
+                {internalTab === 'waiter' && <WaiterFloorMap />}
+                {internalTab === 'kitchen' && <KitchenKDS />}
+                {internalTab === 'cashier' && <CashierDesk />}
+                {internalTab === 'owner' && <OwnerDashboard />}
+              </div>
 
-          {/* Modal de Control y Arqueo Físico de Caja (Corte X y Z) */}
-          <CashDrawerModal
-            isOpen={isCashDrawerOpen}
-            onClose={() => setIsCashDrawerOpen(false)}
-          />
+              {/* Modal de Control y Arqueo Físico de Caja (Corte X y Z) */}
+              <CashDrawerModal
+                isOpen={isCashDrawerOpen}
+                onClose={() => setIsCashDrawerOpen(false)}
+              />
 
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Contenedor de Notificaciones Toast Hápticas */}
