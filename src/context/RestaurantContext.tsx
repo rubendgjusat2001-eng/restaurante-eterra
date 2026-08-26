@@ -174,7 +174,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   });
 
   const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => STAFF_MEMBERS[0]); // Default Rubén (Owner)
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => null); // Inicia bloqueado hasta autenticación
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
 
@@ -193,7 +193,6 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           active: true
         }));
         setStaff(mappedStaff);
-        if (!currentUser) setCurrentUser(mappedStaff[0]);
       }
     });
   }, []);
