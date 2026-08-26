@@ -17,10 +17,11 @@ CREATE TABLE IF NOT EXISTS public.restaurants (
     whatsapp TEXT,
     address TEXT,
     city TEXT DEFAULT 'Lima, Perú',
-    currency TEXT DEFAULT 'PEN',
     theme_preset TEXT DEFAULT 'marisqueria',
     custom_theme JSONB,
     owner_password TEXT DEFAULT 'Admin2026!*',
+    force_logout_timestamp BIGINT DEFAULT 0,
+    auth_version INT DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

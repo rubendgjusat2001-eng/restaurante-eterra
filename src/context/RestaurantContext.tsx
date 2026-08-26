@@ -73,6 +73,7 @@ interface RestaurantContextType {
   deleteStaffUser: (userId: string) => void;
   updateUserPin: (userId: string, newPin: string) => void;
   verifySupervisorPin: (pin: string) => boolean;
+  forceLogoutAllDevices: () => Promise<void>;
   purgeAllDataToZero: () => Promise<void>;
   isPinModalOpen: boolean;
   setIsPinModalOpen: (open: boolean) => void;
@@ -597,6 +598,16 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
                 localStorage.setItem('eterra_owner_password', nr.owner_password);
               }
             }
+            if (nr.force_logout_timestamp) {
+              const forceLogoutTime = Number(nr.force_logout_timestamp);
+              const clientAuthTime = Number(localStorage.getItem('eterra_active_session_auth_timestamp') || 0);
+              if (forceLogoutTime > 0 && clientAuthTime < forceLogoutTime) {
+                clearSessionFromStorage();
+                setCurrentUser(null);
+                sounds.playAlert();
+                showToast('warning', 'La sesión ha sido cerrada en todos los dispositivos por una actualización de seguridad del Administrador.', 'Cierre de Sesión Global');
+              }
+            }
           }
         }
       )
@@ -886,17 +897,13 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    setOwnerPassword(newPass);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('eterra_owner_password', newPass);
-      sessionStorage.setItem('eterra_owner_password', newPass);
-    }
-
+    const now = Date.now();
     if (supabase) {
       const { data: existing } = await supabase.from('restaurants').select('id').limit(1).maybeSingle();
       if (existing?.id) {
         await supabase.from('restaurants').update({
           owner_password: newPass,
+          force_logout_timestamp: now,
           updated_at: new Date().toISOString()
         }).eq('id', existing.id);
       } else {
@@ -904,15 +911,45 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           slug: 'eterra-peru',
           name: restaurant.name,
           owner_password: newPass,
+          force_logout_timestamp: now,
           updated_at: new Date().toISOString()
         }, { onConflict: 'slug' });
       }
     }
 
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
+      sessionStorage.setItem('eterra_active_session_auth_timestamp', String(now + 2000));
+    }
+
     sounds.playClick();
-    showToast('success', 'Contraseña del Propietario actualizada con éxito en la nube');
-    addAuditLog('system_action', 'Contraseña maestra de Propietario actualizada');
+    showToast('success', 'Contraseña del Propietario actualizada con éxito en la nube. Se ha forzado el cierre de sesión en los demás dispositivos.', 'Super Seguridad');
+    addAuditLog('system_action', 'Contraseña maestra de Propietario actualizada y sesiones revocadas');
     return true;
+  };
+
+  const forceLogoutAllDevices = async (): Promise<void> => {
+    const now = Date.now();
+    if (supabase) {
+      const { data: existing } = await supabase.from('restaurants').select('id').limit(1).maybeSingle();
+      if (existing?.id) {
+        await supabase.from('restaurants').update({
+          force_logout_timestamp: now,
+          updated_at: new Date().toISOString()
+        }).eq('id', existing.id);
+      } else {
+        await supabase.from('restaurants').upsert({
+          slug: 'eterra-peru',
+          name: restaurant.name,
+          force_logout_timestamp: now,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'slug' });
+      }
+    }
+    clearSessionFromStorage();
+    setCurrentUser(null);
+    sounds.playAlert();
+    showToast('warning', 'Se ha cerrado la sesión en todos los dispositivos conectados por protocolo de super seguridad.', 'Seguridad Global');
   };
 
   // Métodos de Auth y PIN
@@ -1818,6 +1855,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         deleteStaffUser,
         updateUserPin,
         verifySupervisorPin,
+        forceLogoutAllDevices,
         purgeAllDataToZero,
         isPinModalOpen,
         setIsPinModalOpen,

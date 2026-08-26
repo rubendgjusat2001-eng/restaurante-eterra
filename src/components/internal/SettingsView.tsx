@@ -23,6 +23,7 @@ export function SettingsView() {
     updateRestaurantInfo, 
     setThemePreset, 
     updateOwnerPassword, 
+    forceLogoutAllDevices,
     purgeAllDataToZero, 
     showToast 
   } = useRestaurant();
@@ -368,6 +369,28 @@ export function SettingsView() {
             >
               <KeyRound className="w-4 h-4" />
               <span>Actualizar Contraseña Maestra</span>
+            </button>
+          </div>
+
+          {/* BOTÓN KILL SWITCH DE SESIONES ACTIVAS */}
+          <div className="pt-4 border-t border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-rose-600" />
+              <span>Super Seguridad: Cierre de Sesión Remoto Global</span>
+            </h4>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Si sospechas que dejaste abierta tu sesión en otro equipo o teléfono, esta acción expulsará inmediatamente y forzará el cierre de sesión en absolutamente todos los dispositivos conectados en tiempo real.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('¿Está seguro de cerrar la sesión en absolutamente todos los dispositivos conectados? Deberá volver a ingresar.')) {
+                  forceLogoutAllDevices();
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <span>Cerrar Sesión en Todos los Dispositivos Ahora</span>
             </button>
           </div>
         </form>
