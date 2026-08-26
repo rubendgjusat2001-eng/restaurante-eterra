@@ -278,8 +278,23 @@ export function WaiterFloorMap() {
               title="Auditoría y Diagnóstico de Integridad del Sistema"
             >
               <Database className="w-3.5 h-3.5 text-cyan-700" />
-              <span className="hidden sm:inline">Diagnóstico ({tables.length} mesas)</span>
+              <span className="hidden sm:inline">Diagnóstico</span>
             </button>
+
+            {tables.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm('¿Deseas reiniciar y limpiar todas las mesas a 0 para configurar tu restaurante desde cero?')) {
+                    resetToDemoData();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-colors cursor-pointer"
+                title="Limpiar todas las mesas a cero"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                <span>Limpiar a 0</span>
+              </button>
+            )}
           </div>
 
         </div>
@@ -775,15 +790,15 @@ export function WaiterFloorMap() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm('¿Restaurar todas las mesas y comandas a los datos demo verificados?')) {
+                    if (confirm('¿Deseas reiniciar y limpiar todas las mesas y comandas a 0 para comenzar la configuración desde cero?')) {
                       resetToDemoData();
                       setIsDiagnosticOpen(false);
                     }
                   }}
-                  className="py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5"
+                  className="py-2 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Restaurar Datos Demo</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Limpiar Sistema a 0</span>
                 </button>
               </div>
             </div>

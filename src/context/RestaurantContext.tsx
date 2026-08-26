@@ -193,40 +193,32 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Menú y Categorías
+  // Menú y Categorías (Inicia en 0)
   const [categories] = useState<MenuCategory[]>(MENU_CATEGORIES);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eterra_menu_items');
-      if (saved) {
-        try { return JSON.parse(saved); } catch {}
-      }
-    }
-    return INITIAL_MENU_ITEMS;
-  });
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(() => []);
 
-  // Mesas
-  const [tables, setTables] = useState<Table[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eterra_tables');
-      if (saved) {
-        try { return JSON.parse(saved); } catch {}
-      }
-    }
-    return INITIAL_TABLES;
-  });
+  // Mesas (Inicia en 0 para configuración del cliente)
+  const [tables, setTables] = useState<Table[]>(() => []);
   const [activeZone, setActiveZone] = useState<string>('all');
 
-  // Comandas y Pedidos
-  const [orders, setOrders] = useState<Order[]>(() => {
+  // Comandas y Pedidos (Inicia en 0)
+  const [orders, setOrders] = useState<Order[]>(() => []);
+
+  // Limpieza automática de caché local antiguo en el navegador del cliente
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eterra_orders');
-      if (saved) {
-        try { return JSON.parse(saved); } catch {}
+      const isClean = localStorage.getItem('eterra_clean_v3');
+      if (!isClean) {
+        localStorage.removeItem('eterra_tables');
+        localStorage.removeItem('eterra_orders');
+        localStorage.removeItem('eterra_menu_items');
+        localStorage.setItem('eterra_clean_v3', 'true');
+        setTables([]);
+        setOrders([]);
+        setMenuItems([]);
       }
     }
-    return [];
-  });
+  }, []);
 
   // Caja & Turnos
   const [activeShift, setActiveShift] = useState<CashShift>(() => INITIAL_SHIFT);
@@ -981,42 +973,32 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const resetToDemoData = () => {
+  const purgeAllDataToZero = async () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('eterra_tables');
       localStorage.removeItem('eterra_orders');
       localStorage.removeItem('eterra_active_shift');
       localStorage.removeItem('eterra_menu_items');
+      localStorage.setItem('eterra_clean_v3', 'true');
     }
-    setTables(INITIAL_TABLES);
-    setMenuItems(INITIAL_MENU_ITEMS);
-    setActiveShift(INITIAL_SHIFT);
+    setTables([]);
+    setMenuItems([]);
+    setOrders([]);
+    setReservations([]);
     setActiveZone('all');
-    
-    // Resincronizar mesas demo a Supabase
+
     if (supabase) {
-      supabase.from('tables').delete().neq('id', 'null').then(() => {
-        const tablesToInsert = INITIAL_TABLES.map(t => ({
-          id: t.id,
-          number: t.number,
-          zone: t.zone,
-          capacity: t.capacity,
-          status: t.status,
-          customer_count: t.customerCount || null,
-          current_order_id: t.currentOrderId || null,
-          seated_at: t.seatedAt || null,
-          opened_timestamp: t.openedTimestamp || null,
-          opened_by_user_id: t.openedByUserId || null,
-          opened_by_user_name: t.openedByUserName || null,
-          assigned_waiter_id: t.assignedWaiterId || null,
-          assigned_waiter_name: t.assignedWaiterName || null
-        }));
-        supabase!.from('tables').insert(tablesToInsert).then();
-      });
+      await supabase.from('orders').delete().neq('id', '___none___');
+      await supabase.from('tables').delete().neq('id', '___none___');
+      await supabase.from('menu_items').delete().neq('id', '___none___');
     }
 
-    sounds.playClick();
-    showToast('success', 'Datos y mesas restaurados al estado original verificado');
+    sounds.playAlert();
+    showToast('success', 'El sistema ha sido reiniciado a 0 mesas y 0 comandas');
+  };
+
+  const resetToDemoData = () => {
+    purgeAllDataToZero();
   };
 
   // KDS & Platos
