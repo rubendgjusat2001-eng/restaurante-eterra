@@ -42,14 +42,14 @@ export function PinPadModal() {
         handleDeleteDigit();
       } else if (e.key === 'Enter') {
         handleVerifyPin();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === 'Escape' && currentUser) {
         setIsPinModalOpen(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPinModalOpen, pin, selectedStaff]);
+  }, [isPinModalOpen, pin, selectedStaff, currentUser]);
 
   if (!isPinModalOpen) return null;
 
@@ -95,20 +95,22 @@ export function PinPadModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl text-slate-900">
         
-        {/* Botón Cerrar */}
-        <button
-          onClick={() => {
-            sounds.playClick();
-            setIsPinModalOpen(false);
-            setPendingActionUser(null);
-          }}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Botón Cerrar (Solo si ya hay usuario autenticado) */}
+        {currentUser && (
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setIsPinModalOpen(false);
+              setPendingActionUser(null);
+            }}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Encabezado */}
         <div className="text-center mb-6">

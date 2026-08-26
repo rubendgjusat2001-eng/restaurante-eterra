@@ -67,6 +67,7 @@ interface RestaurantContextType {
   logoutStaff: () => void;
   addStaffUser: (user: { name: string; role: UserRole; pin: string; avatar?: string }) => void;
   deleteStaffUser: (userId: string) => void;
+  updateUserPin: (userId: string, newPin: string) => void;
   verifySupervisorPin: (pin: string) => boolean;
   isPinModalOpen: boolean;
   setIsPinModalOpen: (open: boolean) => void;
@@ -650,6 +651,23 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     sounds.playClick();
     showToast('info', `Usuario ${target?.name} eliminado`);
     addAuditLog('system_action', `Personal eliminado: ${target?.name}`);
+  };
+
+  const updateUserPin = (userId: string, newPin: string) => {
+    if (currentUser?.role !== 'owner' && currentUser?.id !== userId) {
+      showToast('error', 'Solo el Dueño puede modificar PINs de otros usuarios');
+      return;
+    }
+    setStaff(prev => prev.map(s => s.id === userId ? { ...s, pin: newPin } : s));
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, pin: newPin } : null);
+    }
+    if (supabase) {
+      supabase.from('staff_users').update({ pin: newPin }).eq('id', userId).then();
+    }
+    sounds.playClick();
+    showToast('success', 'PIN de acceso actualizado con éxito');
+    addAuditLog('system_action', `PIN actualizado para usuario ID: ${userId}`);
   };
 
   const verifySupervisorPin = (pin: string): boolean => {
@@ -1411,6 +1429,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
         logoutStaff,
         addStaffUser,
         deleteStaffUser,
+        updateUserPin,
         verifySupervisorPin,
         isPinModalOpen,
         setIsPinModalOpen,

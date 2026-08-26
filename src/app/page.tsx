@@ -30,6 +30,18 @@ export default function HomePage() {
   // Pestaña activa dentro del ERP interno
   const [internalTab, setInternalTab] = useState<InternalTab>('waiter');
 
+  // Ajuste automático de pestaña según el rol del usuario autenticado
+  React.useEffect(() => {
+    if (!currentUser) return;
+    if (currentUser.role === 'kitchen' || currentUser.role === 'bar') {
+      setInternalTab('kitchen');
+    } else if (currentUser.role === 'cashier') {
+      setInternalTab('cashier');
+    } else if (currentUser.role === 'waiter' && internalTab === 'owner') {
+      setInternalTab('waiter');
+    }
+  }, [currentUser]);
+
   // Estado del Carrito Público
   const [isCartOpen, setIsCartOpen] = useState(false);
 

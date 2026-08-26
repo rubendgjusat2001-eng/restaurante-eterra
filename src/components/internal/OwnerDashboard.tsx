@@ -41,6 +41,7 @@ export function OwnerDashboard() {
     staff,
     addStaffUser,
     deleteStaffUser,
+    updateUserPin,
     auditLogs, 
     tables,
     activeShift,
@@ -639,15 +640,32 @@ export function OwnerDashboard() {
                       </div>
                     </div>
 
-                    {!isOwner && (
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => deleteStaffUser(member.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Eliminar colaborador"
+                        onClick={() => {
+                          const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`, member.pin);
+                          if (newPin && newPin.trim().length === 4) {
+                            updateUserPin(member.id, newPin.trim());
+                          } else if (newPin) {
+                            showToast('error', 'El PIN debe tener exactamente 4 dígitos numéricos');
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
+                        title="Cambiar PIN de seguridad"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Lock className="w-3.5 h-3.5" />
                       </button>
-                    )}
+
+                      {!isOwner && (
+                        <button
+                          onClick={() => deleteStaffUser(member.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Eliminar colaborador"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
