@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { Table, Order, OrderPaymentMethod, InvoiceType, StaffUser } from '@/types/restaurant';
 import { formatMoney, sounds } from '@/lib/utils';
@@ -21,22 +21,38 @@ import {
 } from 'lucide-react';
 
 export function CashierDesk() {
-  const { 
-    tables, 
-    orders, 
-    processTablePayment, 
+  const {
+    tables,
+    orders,
+    processTablePayment,
     restaurant,
-    currentUser,
-    staff 
+    staff,
+    requestStaffIdentity
   } = useRestaurant();
 
   // Mesa seleccionada para cobro
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
 
-  // Cajero que procesa la transacción
+  // Cajero que procesa la transacción (colaborador de staff_users, no la
+  // cuenta de acceso con la que se inició sesión — se confirma con PIN antes
+  // de cobrar, ver handleExecutePayment)
   const [activeCashier, setActiveCashier] = useState<StaffUser>(
-    currentUser || staff.find(s => s.role.includes('cashier')) || staff[0]
+    staff.find(s => s.role.includes('cashier')) || staff[0]
   );
+
+  // El personal real llega de la nube después del primer render (antes de
+  // eso, `staff` es solo la semilla local de ejemplo). Si el cajero
+  // seleccionado ya no existe en la lista real, se reemplaza por uno válido
+  // — evita identificar por PIN contra un ID de ejemplo que nunca existió
+  // en la base de datos.
+  useEffect(() => {
+    if (staff.length === 0) return;
+    const stillValid = staff.some(s => s.id === activeCashier.id);
+    if (!stillValid) {
+      setActiveCashier(staff.find(s => s.role.includes('cashier')) || staff[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staff]);
 
   // Estados de cobro
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('boleta');
@@ -71,13 +87,20 @@ export function CashierDesk() {
   const cashNum = parseFloat(cashReceived) || 0;
   const cashChange = Math.max(0, cashNum - grandTotal);
 
-  const handleExecutePayment = () => {
-    if (!currentTable) return;
+  const [isConfirmingCashier, setIsConfirmingCashier] = useState(false);
+
+  const handleExecutePayment = async () => {
+    if (!currentTable || isConfirmingCashier) return;
 
     if (invoiceType === 'factura' && (!customerDoc || customerDoc.length !== 11)) {
       alert('Para Factura Electrónica debes ingresar un RUC válido de 11 dígitos.');
       return;
     }
+
+    setIsConfirmingCashier(true);
+    const confirmedCashier = await requestStaffIdentity(activeCashier);
+    setIsConfirmingCashier(false);
+    if (!confirmedCashier) return; // Cancelado o PIN incorrecto
 
     const orderRes = processTablePayment(
       currentTable.id,
@@ -89,7 +112,8 @@ export function CashierDesk() {
         tip: tipAmount,
         discount: discountAmount,
         paidAmount: grandTotal
-      }
+      },
+      { id: confirmedCashier.id, name: confirmedCashier.name }
     );
 
     if (orderRes) {
@@ -418,7 +442,8 @@ export function CashierDesk() {
 
                 <button
                   onClick={handleExecutePayment}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                  disabled={isConfirmingCashier}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Cobrar & Dar Salida a Mesa</span>
@@ -517,7 +542,10 @@ export function CashierDesk() {
 
             {/* Datos Cliente & Trazabilidad de Mozos y Cajero */}
             <div className="space-y-1 pb-2.5 border-b border-dashed border-slate-300 text-[11px]">
-              <div><strong>Fecha/Hora:</strong> {new Date().toLocaleDateString('es-PE')} {new Date().toLocaleTimeString('es-PE')}</div>
+              <div><strong>Fecha/Hora:</strong> {(() => {
+                const d = new Date(printedReceipt.closedAt || printedReceipt.createdAt);
+                return `${d.toLocaleDateString('es-PE')} ${d.toLocaleTimeString('es-PE')}`;
+              })()}</div>
               <div><strong>Mesa:</strong> {printedReceipt.tableNumber || 'BAR'}</div>
               <div><strong>Atendido por (Mozo):</strong> {printedReceipt.waiterName}</div>
               <div><strong>Cobrado por (Cajero):</strong> {printedReceipt.closedByUserName || activeCashier.name}</div>

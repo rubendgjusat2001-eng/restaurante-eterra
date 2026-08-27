@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { ToastContainer } from '@/components/common/ToastContainer';
+import { PinPadModal } from '@/components/common/PinPadModal';
 
 // Componentes y Vistas Completas del Sistema Interno
 import { SidebarDrawer } from '@/components/internal/SidebarDrawer';
@@ -177,6 +178,9 @@ export default function SistemaPrivadoPage() {
 
         </div>
       )}
+
+      {/* Modal Global de Identificación de Colaborador (Nivel 2: PIN) */}
+      <PinPadModal />
 
       {/* Contenedor de Toasts Hápticos */}
       <ToastContainer />

@@ -5,6 +5,7 @@ import { useRestaurant } from '@/context/RestaurantContext';
 import { Table, TableStatus, StaffUser } from '@/types/restaurant';
 import { OrderPadModal } from './OrderPadModal';
 import { formatMoney, sounds } from '@/lib/utils';
+import { serverNow, serverDate } from '@/lib/server-time';
 import { 
   LayoutGrid, 
   Users, 
@@ -40,18 +41,18 @@ export function WaiterFloorMap() {
     addTable,
     deleteTable,
     resetToDemoData,
-    currentUser, 
+    currentUser,
     staff,
-    activeShift 
+    activeShift,
+    requestStaffIdentity
   } = useRestaurant();
 
   // Estados de modales operativos
   const [selectedTableForOrder, setSelectedTableForOrder] = useState<Table | null>(null);
   const [tableToOpen, setTableToOpen] = useState<Table | null>(null);
   const [openGuestsCount, setOpenGuestsCount] = useState<number>(2);
-  const [selectedStaffUser, setSelectedStaffUser] = useState<StaffUser | null>(currentUser || staff[0]);
-  const [staffPinInput, setStaffPinInput] = useState<string>('');
-  const [pinError, setPinError] = useState<boolean>(false);
+  const [selectedStaffUser, setSelectedStaffUser] = useState<StaffUser | null>(staff[0] || null);
+  const [isConfirmingIdentity, setIsConfirmingIdentity] = useState(false);
 
   // Modal de Transferencia de Mesa
   const [transferSourceId, setTransferSourceId] = useState<string | null>(null);
@@ -65,11 +66,14 @@ export function WaiterFloorMap() {
   // Modal de Inspector de Integridad de Datos
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState<boolean>(false);
 
-  // Timer reactivo para calcular permanencia en vivo cada 10 segundos
-  const [nowTimestamp, setNowTimestamp] = useState<number>(Date.now());
+  // Timer reactivo para calcular permanencia en vivo cada 10 segundos.
+  // Inicia en 0 (no Date.now()) para que el primer render coincida entre
+  // servidor y cliente; el valor real se fija en el efecto, tras hidratar.
+  const [nowTimestamp, setNowTimestamp] = useState<number>(0);
   useEffect(() => {
+    setNowTimestamp(serverNow());
     const interval = setInterval(() => {
-      setNowTimestamp(Date.now());
+      setNowTimestamp(serverNow());
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -83,7 +87,7 @@ export function WaiterFloorMap() {
     }
     if (table.seatedAt) {
       const [h, m] = table.seatedAt.split(':').map(Number);
-      const d = new Date();
+      const d = serverDate();
       d.setHours(h, m, 0, 0);
       const diffMs = nowTimestamp - d.getTime();
       return Math.max(0, Math.floor(diffMs / 60000));
@@ -140,9 +144,7 @@ export function WaiterFloorMap() {
     if (table.status === 'available') {
       setTableToOpen(table);
       setOpenGuestsCount(table.capacity > 2 ? 4 : 2);
-      setSelectedStaffUser(currentUser || staff.find(s => s.role.includes('waiter')) || staff[0]);
-      setStaffPinInput('');
-      setPinError(false);
+      setSelectedStaffUser(staff.find(s => s.role.includes('waiter')) || staff[0]);
     } else if (table.status === 'cleaning') {
       cleanTable(table.id);
     } else {
@@ -150,28 +152,26 @@ export function WaiterFloorMap() {
     }
   };
 
-  const handleConfirmOpenTable = () => {
-    if (!tableToOpen || !selectedStaffUser) return;
+  const handleConfirmOpenTable = async () => {
+    if (!tableToOpen || !selectedStaffUser || isConfirmingIdentity) return;
 
-    if (staffPinInput.length > 0 && staffPinInput !== selectedStaffUser.pin) {
-      setPinError(true);
-      sounds.playAlert();
-      return;
-    }
+    setIsConfirmingIdentity(true);
+    const confirmedStaff = await requestStaffIdentity(selectedStaffUser);
+    setIsConfirmingIdentity(false);
+    if (!confirmedStaff) return; // Cancelado o PIN incorrecto
 
-    const orderId = openTable(tableToOpen.id, openGuestsCount, selectedStaffUser.id);
+    const orderId = openTable(tableToOpen.id, openGuestsCount, confirmedStaff.id);
     const opened = tables.find(t => t.id === tableToOpen.id);
     if (opened) {
-      setSelectedTableForOrder({ 
-        ...opened, 
-        status: 'occupied', 
-        openedByUserName: selectedStaffUser.name,
-        seatedAt: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+      setSelectedTableForOrder({
+        ...opened,
+        status: 'occupied',
+        openedByUserName: confirmedStaff.name,
+        seatedAt: serverDate().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
         currentOrderId: orderId
       });
     }
     setTableToOpen(null);
-    setStaffPinInput('');
   };
 
   const handleExecuteTransfer = (targetTableId: string) => {
@@ -533,8 +533,6 @@ export function WaiterFloorMap() {
                       onClick={() => {
                         sounds.playClick();
                         setSelectedStaffUser(user);
-                        setStaffPinInput('');
-                        setPinError(false);
                       }}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
                         isSelected
@@ -582,29 +580,12 @@ export function WaiterFloorMap() {
               </div>
             </div>
 
-            {/* PIN de Seguridad del Mozo */}
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                  <KeyRound className="w-3 h-3 text-cyan-700" />
-                  PIN de Mozo ({selectedStaffUser?.name.split(' ')[0]}):
-                </label>
-                <span className="text-[10px] text-slate-400 font-mono">Demo: {selectedStaffUser?.pin || '1234'}</span>
-              </div>
-              <input
-                type="password"
-                maxLength={4}
-                placeholder="Digita tu PIN o confirma directo"
-                value={staffPinInput}
-                onChange={e => {
-                  setStaffPinInput(e.target.value);
-                  setPinError(false);
-                }}
-                className="w-full bg-white border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-cyan-600 font-mono"
-              />
-              {pinError && (
-                <p className="text-[10px] text-rose-600 font-bold mt-1">PIN incorrecto para {selectedStaffUser?.name}.</p>
-              )}
+            {/* Identificación de Seguridad */}
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-start gap-2">
+              <KeyRound className="w-3.5 h-3.5 text-cyan-700 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-slate-600">
+                Al activar la mesa se te pedirá confirmar tu PIN para identificar quién la abrió.
+              </p>
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
@@ -618,7 +599,8 @@ export function WaiterFloorMap() {
               <button
                 type="button"
                 onClick={handleConfirmOpenTable}
-                className="w-2/3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                disabled={isConfirmingIdentity}
+                className="w-2/3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
               >
                 <Check className="w-4 h-4" />
                 <span>Activar Mesa ({openGuestsCount} pers)</span>

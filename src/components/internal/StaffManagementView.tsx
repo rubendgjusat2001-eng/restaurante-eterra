@@ -14,18 +14,19 @@ import {
   Filter 
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
+import { AccessAccountsPanel } from './AccessAccountsPanel';
 
 export function StaffManagementView() {
-  const { 
-    staff, 
+  const {
+    staff,
     currentThemeColors,
-    addStaffUser, 
-    deleteStaffUser, 
-    updateUserPin, 
-    showToast 
+    addStaffUser,
+    deleteStaffUser,
+    updateUserPin,
+    showToast
   } = useRestaurant();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'shifts'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'roles' | 'shifts'>('users');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -109,7 +110,8 @@ export function StaffManagementView() {
       {/* 2. Pestañas Superiores (Estilo Referencia Imagen 3) */}
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200 overflow-x-auto">
         {[
-          { id: 'users', label: `Usuarios (${staff.length})` },
+          { id: 'users', label: `Personal (${staff.length})` },
+          { id: 'accounts', label: 'Cuentas de Acceso' },
           { id: 'roles', label: 'Permisos de Roles' },
           { id: 'shifts', label: 'Horarios de Turno' },
         ].map(tab => {
@@ -131,14 +133,18 @@ export function StaffManagementView() {
         })}
       </div>
 
+      {activeTab === 'accounts' ? (
+        <AccessAccountsPanel />
+      ) : (
+      <>
       {/* 3. Título de Sección + Botón de Acción Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Gestión de Personal & Usuarios
+            Gestión de Personal
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Administra las cuentas de acceso, roles y PINs de seguridad del restaurante
+            Administra los colaboradores y su PIN de identificación (ve a &quot;Cuentas de Acceso&quot; para usuarios y contraseñas de entrada al sistema)
           </p>
         </div>
 
@@ -348,7 +354,7 @@ export function StaffManagementView() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => {
-                              const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`, member.pin);
+                              const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`);
                               if (newPin && newPin.trim().length === 4) {
                                 updateUserPin(member.id, newPin.trim());
                               } else if (newPin) {
@@ -381,6 +387,8 @@ export function StaffManagementView() {
           </table>
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

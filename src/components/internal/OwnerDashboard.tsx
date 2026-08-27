@@ -643,7 +643,7 @@ export function OwnerDashboard() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => {
-                          const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`, member.pin);
+                          const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`);
                           if (newPin && newPin.trim().length === 4) {
                             updateUserPin(member.id, newPin.trim());
                           } else if (newPin) {

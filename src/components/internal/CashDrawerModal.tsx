@@ -22,15 +22,18 @@ interface CashDrawerModalProps {
 }
 
 export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
-  const { 
-    activeShift, 
-    shiftHistory, 
-    saveCashAudit, 
-    closeCurrentShift, 
-    openNewShift, 
-    currentUser,
-    restaurant 
+  const {
+    activeShift,
+    shiftHistory,
+    saveCashAudit,
+    closeCurrentShift,
+    openNewShift,
+    staff,
+    restaurant,
+    requestStaffIdentity
   } = useRestaurant();
+
+  const [isConfirmingClose, setIsConfirmingClose] = useState(false);
 
   // Estados de conteo de billetes y monedas
   const [denominations, setDenominations] = useState<CashDenominationCount>({
@@ -85,16 +88,23 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
     saveCashAudit(denominations, auditNotes);
   };
 
-  const handleCloseShift = () => {
-    if (confirm(`¿Estás seguro de cerrar el turno "${activeShift.shiftName}"? Se registrará el cuadre final.`)) {
-      closeCurrentShift(
-        totalCashCounted,
-        activeShift.systemCardSales,
-        activeShift.systemYapePlinSales,
-        auditNotes
-      );
-      setActiveTab('history');
-    }
+  const handleCloseShift = async () => {
+    if (isConfirmingClose) return;
+    if (!confirm(`¿Estás seguro de cerrar el turno "${activeShift.shiftName}"? Se registrará el cuadre final.`)) return;
+
+    setIsConfirmingClose(true);
+    const confirmedStaff = await requestStaffIdentity(staff[0] || null);
+    setIsConfirmingClose(false);
+    if (!confirmedStaff) return; // Cancelado o PIN incorrecto
+
+    closeCurrentShift(
+      totalCashCounted,
+      activeShift.systemCardSales,
+      activeShift.systemYapePlinSales,
+      auditNotes,
+      confirmedStaff.name
+    );
+    setActiveTab('history');
   };
 
   const handleCreateNewShift = () => {
@@ -344,7 +354,8 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
 
               <button
                 onClick={handleCloseShift}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                disabled={isConfirmingClose}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
               >
                 <Lock className="w-4 h-4" />
                 <span>Cerrar Turno Definitivo (Corte Z)</span>

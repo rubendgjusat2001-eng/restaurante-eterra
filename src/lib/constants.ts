@@ -184,7 +184,7 @@ export const INITIAL_SHIFT: CashShift = {
   id: 'shift-01',
   shiftName: 'Turno Principal',
   openedBy: 'Rubén Valdivia',
-  openedAt: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+  openedAt: '--:--', // Valor estático: evita un mismatch de hidratación (servidor vs. cliente calculan la hora en instantes distintos). Se reemplaza al abrir un turno real.
   initialCash: 0.00,
   systemCashSales: 0.00,
   systemCardSales: 0.00,

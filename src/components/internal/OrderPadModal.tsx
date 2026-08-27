@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { Table, MenuItem, OrderItem, OrderCourse, OrderItemStatus } from '@/types/restaurant';
 import { formatMoney, sounds } from '@/lib/utils';
+import { serverDate } from '@/lib/server-time';
 import { 
   X, 
   Plus, 
@@ -176,7 +177,7 @@ export function OrderPadModal({ table, isOpen, onClose, onOpenTransfer }: OrderP
       status: 'queued',
       selectedModifiers: compiledModifiers,
       notes: activeModDish?.id === dish.id ? modNotes : undefined,
-      orderedAt: new Date().toISOString()
+      orderedAt: serverDate().toISOString()
     };
 
     setDraftItems(prev => [...prev, newItem]);
@@ -240,7 +241,7 @@ export function OrderPadModal({ table, isOpen, onClose, onOpenTransfer }: OrderP
             status: 'queued',
             selectedModifiers: [{ groupId: 'mod-picante', groupName: 'Picante', optionId: 'p2', optionName: 'Poco Picante', extraPrice: 0 }],
             notes: 'Dictado por voz IA',
-            orderedAt: new Date().toISOString()
+            orderedAt: serverDate().toISOString()
           });
         }
         if (arroz) {
@@ -256,7 +257,7 @@ export function OrderPadModal({ table, isOpen, onClose, onOpenTransfer }: OrderP
             status: 'queued',
             selectedModifiers: [],
             notes: 'Dictado por voz IA',
-            orderedAt: new Date().toISOString()
+            orderedAt: serverDate().toISOString()
           });
         }
 

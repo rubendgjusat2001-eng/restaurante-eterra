@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { DishStation, OrderItemStatus, OrderCourse } from '@/types/restaurant';
 import { formatMoney, sounds } from '@/lib/utils';
+import { serverNow } from '@/lib/server-time';
 import { 
   ChefHat, 
   Clock, 
@@ -29,11 +30,15 @@ export function KitchenKDS() {
   const [activeStation, setActiveStation] = useState<DishStation | 'all'>('all');
   const [activeCourseFilter, setActiveCourseFilter] = useState<OrderCourse | 'all'>('all');
   const [is86ModalOpen, setIs86ModalOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  // Inicia en 0 (no Date.now()) para que el primer render coincida entre
+  // servidor y cliente; el valor real (corregido contra el servidor) se fija
+  // en el efecto, tras hidratar.
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   // Actualizar temporizadores cada 10 segundos
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 10000);
+    setCurrentTime(serverNow());
+    const timer = setInterval(() => setCurrentTime(serverNow()), 10000);
     return () => clearInterval(timer);
   }, []);
 
