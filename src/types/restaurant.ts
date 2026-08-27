@@ -227,6 +227,8 @@ export interface Order {
   deliveryAddress?: string;
   notes?: string;
   createdAt: string;
+  /** Turno de caja en el que se cobró (Fase F) — permite el reporte por mesero/cajero. */
+  shiftId?: string;
 }
 
 export interface Reservation {
@@ -305,6 +307,17 @@ export interface CashShift {
   cashDifference?: number; // (Contado - Esperado): Positivo = Sobrante, Negativo = Faltante
   status: 'open' | 'closed';
   notes?: string;
+}
+
+export interface CashMovement {
+  id: string;
+  shiftId: string;
+  movementType: 'expense' | 'income';
+  category: string;
+  concept: string;
+  amount: number;
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface AuditLog {

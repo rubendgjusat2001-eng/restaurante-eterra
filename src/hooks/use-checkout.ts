@@ -13,6 +13,8 @@ interface UseCheckoutDeps {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   persistOrderToCloud: (order: Order) => Promise<void>;
   staff: StaffUser[];
+  /** Turno de caja activo — se graba en cada orden cobrada (Fase F, reporte por mesero/cajero). */
+  activeShiftId: string;
   setActiveShift: React.Dispatch<React.SetStateAction<CashShift>>;
   showToast: (type: ToastMessage['type'], message: string, title?: string) => void;
 }
@@ -26,7 +28,7 @@ interface UseCheckoutDeps {
 export function useCheckout({
   tables, setTables, persistTableToCloud,
   orders, setOrders, persistOrderToCloud,
-  staff, setActiveShift, showToast
+  staff, activeShiftId, setActiveShift, showToast
 }: UseCheckoutDeps) {
 
   const processTablePayment = (
@@ -69,7 +71,8 @@ export function useCheckout({
       customerName: details.customerName,
       closedByUserId: cashier.id,
       closedByUserName: cashier.name,
-      closedAt: now.toISOString()
+      closedAt: now.toISOString(),
+      shiftId: activeShiftId
     };
 
     const updatedTable: Table = {

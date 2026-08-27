@@ -32,7 +32,8 @@ function mapRow(o: any): Order {
     customerDocument: o.customer_document,
     customerName: o.customer_name,
     customerPhone: o.customer_phone,
-    createdAt: o.created_at
+    createdAt: o.created_at,
+    shiftId: o.shift_id ?? undefined
   };
 }
 
@@ -70,7 +71,8 @@ export async function persistOrderToCloud(order: Order): Promise<void> {
       invoice_type: order.invoiceType ?? null,
       customer_document: order.customerDocument ?? null,
       customer_name: order.customerName ?? null,
-      customer_phone: order.customerPhone ?? null
+      customer_phone: order.customerPhone ?? null,
+      shift_id: order.shiftId ?? null
     });
   } catch (e) {
     console.warn('Persist order cloud error:', e);

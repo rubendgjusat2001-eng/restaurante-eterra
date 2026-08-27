@@ -158,6 +158,7 @@ interface RestaurantContextType {
   saveCashAudit: (breakdown: CashDenominationCount, notes?: string) => void;
   closeCurrentShift: (countedCash: number, countedCards: number, countedYape: number, notes?: string, attributedStaffName?: string) => void;
   openNewShift: (shiftName: string, initialCash: number) => void;
+  registerCashMovement: (input: { movementType: 'expense' | 'income'; category: string; concept: string; amount: number }) => Promise<void>;
 
   // Reservas & Promociones
   reservations: Reservation[];
@@ -265,6 +266,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   });
   const cashShiftsApi = useCashShifts({
     currentUserRef,
+    isPrivateRoute,
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
@@ -276,6 +278,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     setOrders: ordersApi.setOrders,
     persistOrderToCloud: ordersApi.persistOrderToCloud,
     staff: staffApi.staff,
+    activeShiftId: cashShiftsApi.activeShift.id,
     setActiveShift: cashShiftsApi.setActiveShift,
     showToast: toastsApi.showToast
   });

@@ -1,20 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
-import { CashDenominationCount } from '@/types/restaurant';
+import { CashDenominationCount, CashMovement, CashShift } from '@/types/restaurant';
+import * as cashShiftsService from '@/services/cash-shifts.service';
 import { formatMoney, sounds } from '@/lib/utils';
-import { 
-  Coins, 
-  Banknote, 
-  Calculator, 
-  CheckCircle2, 
-  AlertTriangle, 
-  X, 
-  Clock, 
-  Lock, 
-  Plus
+import {
+  Coins,
+  Banknote,
+  Calculator,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Clock,
+  Lock,
+  Plus,
+  Minus,
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+
+const EXPENSE_CATEGORIES = ['Pago a Trabajadores', 'Servicios y Otros', 'Compras / Insumos', 'Otros Gastos'];
+const INCOME_CATEGORIES = ['Ingreso Adicional', 'Ajuste de Caja', 'Otros Ingresos'];
 
 interface CashDrawerModalProps {
   isOpen: boolean;
@@ -25,13 +33,50 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
   const {
     activeShift,
     shiftHistory,
+    orders,
     saveCashAudit,
     closeCurrentShift,
     openNewShift,
+    registerCashMovement,
     staff,
     restaurant,
     requestStaffIdentity
   } = useRestaurant();
+
+  // Registrar Egreso/Ingreso categorizado (turno activo)
+  const [isMovementFormOpen, setIsMovementFormOpen] = useState(false);
+  const [movementType, setMovementType] = useState<'expense' | 'income'>('expense');
+  const [movementCategory, setMovementCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [movementConcept, setMovementConcept] = useState('');
+  const [movementAmount, setMovementAmount] = useState('');
+
+  const handleRegisterMovement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(movementAmount);
+    if (!movementConcept.trim() || !amount || amount <= 0) return;
+    await registerCashMovement({ movementType, category: movementCategory, concept: movementConcept.trim(), amount });
+    setMovementConcept('');
+    setMovementAmount('');
+    setIsMovementFormOpen(false);
+  };
+
+  // Expandir detalle de un turno en el historial (Fase F)
+  const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
+  const [expandedMovements, setExpandedMovements] = useState<CashMovement[]>([]);
+  const [isLoadingExpanded, setIsLoadingExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!expandedShiftId) return;
+    setIsLoadingExpanded(true);
+    cashShiftsService.fetchShiftMovements(expandedShiftId).then(list => {
+      setExpandedMovements(list);
+      setIsLoadingExpanded(false);
+    });
+  }, [expandedShiftId]);
+
+  const toggleExpand = (shiftId: string) => {
+    setExpandedShiftId(prev => prev === shiftId ? null : shiftId);
+  };
 
   const [isConfirmingClose, setIsConfirmingClose] = useState(false);
 
@@ -342,6 +387,87 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
               </div>
             </div>
 
+            {/* Registrar Egreso / Ingreso Manual (categorizado) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Minus className="w-4 h-4 text-rose-600" />
+                  Movimientos de Caja (Egresos / Ingresos)
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsMovementFormOpen(!isMovementFormOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  {isMovementFormOpen ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                  <span>{isMovementFormOpen ? 'Cerrar' : 'Registrar Movimiento'}</span>
+                </button>
+              </div>
+
+              {isMovementFormOpen && (
+                <form onSubmit={handleRegisterMovement} className="space-y-2.5 pt-1">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { setMovementType('expense'); setMovementCategory(EXPENSE_CATEGORIES[0]); }}
+                      className={`py-2 rounded-lg text-xs font-bold ${movementType === 'expense' ? 'bg-rose-600 text-white' : 'bg-white border border-slate-300 text-slate-700'}`}
+                    >
+                      Egreso
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMovementType('income'); setMovementCategory(INCOME_CATEGORIES[0]); }}
+                      className={`py-2 rounded-lg text-xs font-bold ${movementType === 'income' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-300 text-slate-700'}`}
+                    >
+                      Ingreso
+                    </button>
+                  </div>
+                  <select
+                    value={movementCategory}
+                    onChange={e => setMovementCategory(e.target.value)}
+                    className="w-full bg-white border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none"
+                  >
+                    {(movementType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Concepto (ej. Pago diario - Juan Pérez)"
+                    value={movementConcept}
+                    onChange={e => setMovementConcept(e.target.value)}
+                    className="w-full bg-white border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Monto (S/.)"
+                    value={movementAmount}
+                    onChange={e => setMovementAmount(e.target.value)}
+                    className="w-full bg-white border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 font-mono focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className={`w-full py-2 rounded-lg text-white text-xs font-bold ${movementType === 'expense' ? 'bg-rose-600' : 'bg-emerald-600'}`}
+                  >
+                    Guardar {movementType === 'expense' ? 'Egreso' : 'Ingreso'}
+                  </button>
+                </form>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 text-xs pt-1 border-t border-slate-200">
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex justify-between items-center">
+                  <span className="text-slate-600">Total Egresos:</span>
+                  <span className="font-mono font-bold text-rose-700">-{formatMoney(activeShift.manualCashWithdrawals)}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex justify-between items-center">
+                  <span className="text-slate-600">Total Ingresos:</span>
+                  <span className="font-mono font-bold text-emerald-700">+{formatMoney(activeShift.manualCashEntries)}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Botones de Acción */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
               <button
@@ -365,41 +491,135 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
           </div>
         )}
 
-        {/* TAB 2: HISTORIAL DE TURNOS */}
+        {/* TAB 2: HISTORIAL DE TURNOS — turno activo primero, luego cierres pasados.
+            Orden de columnas pedido: Descuento -> Total Bruto -> Bruto Efectivo ->
+            Bruto Tarjeta -> Egresos -> Transferencia de Turno -> Estado. */}
         {activeTab === 'history' && (
-          <div className="space-y-4 animate-in fade-in">
-            {shiftHistory.length === 0 ? (
-              <div className="p-12 text-center bg-slate-50 border border-slate-200 rounded-2xl">
-                <Clock className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                <h4 className="text-sm font-bold text-slate-900 mb-1">No hay cierres anteriores registrados hoy</h4>
-                <p className="text-xs text-slate-500">Al cerrar un turno definitivo (Corte Z), quedará archivado aquí para auditoría.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {shiftHistory.map((s, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900">{s.shiftName}</h4>
-                        <span className="text-[10px] text-slate-500">({s.openedAt} - {s.closedAt})</span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 mt-0.5">
-                        Cerrado por: <strong className="text-slate-900">{s.closedBy}</strong> • Total Ventas: <span className="font-bold text-emerald-700">{formatMoney(s.systemTotalSales)}</span>
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-500 block">Diferencia de Caja:</span>
-                      <span className={`font-mono font-bold text-sm ${
-                        (s.cashDifference || 0) === 0 ? 'text-emerald-700' : 'text-amber-700'
-                      }`}>
-                        {formatMoney(s.cashDifference || 0)}
-                      </span>
-                    </div>
+          <div className="space-y-3 animate-in fade-in">
+            {(() => {
+              const rows: CashShift[] = activeShift.status === 'open' ? [activeShift, ...shiftHistory] : shiftHistory;
+              if (rows.length === 0) {
+                return (
+                  <div className="p-12 text-center bg-slate-50 border border-slate-200 rounded-2xl">
+                    <Clock className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+                    <h4 className="text-sm font-bold text-slate-900 mb-1">No hay turnos registrados todavía</h4>
+                    <p className="text-xs text-slate-500">Al abrir y cerrar un turno, quedará archivado aquí para auditoría.</p>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              }
+              return (
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[11px] border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="py-2.5 px-3">Turno</th>
+                          <th className="py-2.5 px-3">Descuento</th>
+                          <th className="py-2.5 px-3">Total Bruto</th>
+                          <th className="py-2.5 px-3">Bruto Efectivo</th>
+                          <th className="py-2.5 px-3">Bruto Tarjeta</th>
+                          <th className="py-2.5 px-3">Egresos</th>
+                          <th className="py-2.5 px-3">Transferencia de Turno</th>
+                          <th className="py-2.5 px-3">Caja</th>
+                          <th className="py-2.5 px-3 text-right">Ver</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {rows.map(s => {
+                          const shiftOrders = orders.filter(o => o.shiftId === s.id && o.status === 'completed');
+                          const discountTotal = shiftOrders.reduce((acc, o) => acc + (o.discount || 0), 0);
+                          const isOpen = s.status === 'open';
+                          const isExpanded = expandedShiftId === s.id;
+                          return (
+                            <React.Fragment key={s.id}>
+                              <tr className={`hover:bg-slate-50/80 ${isOpen ? 'bg-emerald-50/40' : ''}`}>
+                                <td className="py-3 px-3">
+                                  <div className="font-bold text-slate-900">{s.shiftName}</div>
+                                  <div className="text-[10px] text-slate-400">{s.openedAt}{s.closedAt ? ` - ${s.closedAt}` : ''}</div>
+                                </td>
+                                <td className="py-3 px-3 font-mono text-amber-700">{discountTotal > 0 ? `-${formatMoney(discountTotal)}` : formatMoney(0)}</td>
+                                <td className="py-3 px-3 font-mono font-black text-slate-900">{formatMoney(s.systemTotalSales)}</td>
+                                <td className="py-3 px-3 font-mono text-emerald-700">{formatMoney(s.systemCashSales)}</td>
+                                <td className="py-3 px-3 font-mono text-cyan-700">{formatMoney(s.systemCardSales)}</td>
+                                <td className="py-3 px-3 font-mono text-rose-700">{s.manualCashWithdrawals > 0 ? `-${formatMoney(s.manualCashWithdrawals)}` : formatMoney(0)}</td>
+                                <td className="py-3 px-3 font-mono text-slate-700">
+                                  {s.countedCashTotal !== undefined ? formatMoney(s.countedCashTotal) : '—'}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                    isOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                                  }`}>
+                                    {isOpen ? 'Abierta' : 'Cerrada'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <button
+                                    onClick={() => toggleExpand(s.id)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-700 hover:bg-cyan-50"
+                                    title="Ver detalle"
+                                  >
+                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={9} className="bg-slate-50 px-4 py-4">
+                                    {isLoadingExpanded ? (
+                                      <p className="text-xs text-slate-400 text-center py-4">Cargando detalle...</p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                        <div>
+                                          <h5 className="font-bold text-slate-700 uppercase text-[10px] tracking-wider mb-2">
+                                            Ventas del turno ({shiftOrders.length})
+                                          </h5>
+                                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            {shiftOrders.length === 0 ? (
+                                              <p className="text-slate-400 text-[11px]">Sin ventas registradas en este turno.</p>
+                                            ) : shiftOrders.map(o => (
+                                              <div key={o.id} className="flex justify-between p-2 rounded-lg bg-white border border-slate-200">
+                                                <span>
+                                                  <strong>{o.code}</strong> · Atendió: {o.waiterName} · Cobró: {o.closedByUserName || '—'}
+                                                </span>
+                                                <span className="font-mono font-bold">{formatMoney(o.total)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h5 className="font-bold text-slate-700 uppercase text-[10px] tracking-wider mb-2">
+                                            Egresos / Ingresos por categoría
+                                          </h5>
+                                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            {expandedMovements.length === 0 ? (
+                                              <p className="text-slate-400 text-[11px]">Sin movimientos manuales en este turno.</p>
+                                            ) : expandedMovements.map(m => (
+                                              <div key={m.id} className="flex justify-between p-2 rounded-lg bg-white border border-slate-200">
+                                                <span>
+                                                  <strong>{m.category}</strong> · {m.concept}
+                                                  {m.createdBy && <span className="text-slate-400"> · {m.createdBy}</span>}
+                                                </span>
+                                                <span className={`font-mono font-bold ${m.movementType === 'expense' ? 'text-rose-700' : 'text-emerald-700'}`}>
+                                                  {m.movementType === 'expense' ? '-' : '+'}{formatMoney(m.amount)}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -407,6 +627,16 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
         {activeTab === 'new_shift' && (
           <div className="space-y-4 bg-slate-50 border border-slate-200 p-6 rounded-2xl max-w-lg mx-auto animate-in fade-in shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-3">Aperturar Nuevo Turno de Restaurante</h4>
+
+            {activeShift.status === 'open' && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Ya hay un turno abierto (<strong>{activeShift.shiftName}</strong>). Solo puede haber una caja
+                  abierta a la vez — ciérralo primero desde la pestaña de Corte X para poder abrir uno nuevo.
+                </span>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Nombre del Turno</label>
@@ -430,7 +660,8 @@ export function CashDrawerModal({ isOpen, onClose }: CashDrawerModalProps) {
 
             <button
               onClick={handleCreateNewShift}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25"
+              disabled={activeShift.status === 'open'}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Confirmar y Abrir Turno
             </button>

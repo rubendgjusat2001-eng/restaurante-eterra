@@ -96,7 +96,7 @@ export function InternalHeader({
           <span>Supabase Nube OK</span>
         </div>
 
-        {/* Turno de Caja */}
+        {/* Turno de Caja — Efectivo Bruto / Tarjeta Bruto / Total Bruto en vivo (sin descontar egresos) */}
         <button
           onClick={() => {
             sounds.playClick();
@@ -107,8 +107,19 @@ export function InternalHeader({
         >
           <Coins className="w-3.5 h-3.5 text-amber-600" />
           <span className="font-bold text-slate-900">{activeShift.shiftName}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+            activeShift.status === 'open' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {activeShift.status === 'open' ? 'Turno: ' + (activeShift.shiftName.toLowerCase().includes('noche') ? 'Noche' : 'Día') : 'Cerrado'}
+          </span>
           <span className="text-slate-300">|</span>
-          <span className="font-mono font-bold text-emerald-600">{formatMoney(activeShift.systemTotalSales)}</span>
+          <span title="Efectivo Bruto" className="font-mono font-bold text-emerald-700">{formatMoney(activeShift.systemCashSales)}</span>
+          <span className="text-slate-300">|</span>
+          <span title="Tarjeta Bruto" className="font-mono font-bold text-cyan-700">{formatMoney(activeShift.systemCardSales)}</span>
+          <span className="text-slate-300">|</span>
+          <span title="Total Bruto" className="font-mono font-black text-slate-900">
+            T: {formatMoney(activeShift.systemTotalSales)}
+          </span>
         </button>
 
         {/* Botón de Ajustes (Solo Owner) */}
