@@ -29,6 +29,7 @@ import { useToasts, ToastMessage } from '@/hooks/use-toasts';
 import { useAuditLog } from '@/hooks/use-audit-log';
 import { useStaff } from '@/hooks/use-staff';
 import { useStaffPositions } from '@/hooks/use-staff-positions';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useAuth } from '@/hooks/use-auth';
 import { useRestaurantProfile } from '@/hooks/use-restaurant-profile';
 import { useMenu } from '@/hooks/use-menu';
@@ -95,6 +96,13 @@ interface RestaurantContextType {
   positions: { id: string; name: string; description?: string; sortOrder: number }[];
   addPosition: (name: string, description?: string) => Promise<{ id: string; name: string; description?: string; sortOrder: number } | null>;
   removePosition: (id: string) => Promise<void>;
+
+  // Permisos de Roles (Fase G, solo Usuarios / Nivel 1)
+  permissions: { id: string; role: string; module: string; canView: boolean; canEdit: boolean; canDelete: boolean }[];
+  canView: (module: string) => boolean;
+  canEdit: (module: string) => boolean;
+  canDelete: (module: string) => boolean;
+  savePermission: (input: { role: string; module: string; canView: boolean; canEdit: boolean; canDelete: boolean }) => Promise<void>;
   verifyStaffPin: (staffId: string, pin: string) => Promise<StaffUser | null>;
   requestStaffIdentity: (preselect?: StaffUser | null) => Promise<StaffUser | null>;
   resolveStaffIdentity: (result: StaffUser | null) => void;
@@ -229,6 +237,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
+  const permissionsApi = usePermissions({ role: authApi.currentUser?.role, isPrivateRoute });
 
   useEffect(() => {
     currentUserRef.current = authApi.currentUser;
@@ -353,6 +362,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     ...restaurantProfileApi,
     ...staffApi,
     ...staffPositionsApi,
+    ...permissionsApi,
     ...authApi,
     purgeAllDataToZero,
     resetToDemoData,

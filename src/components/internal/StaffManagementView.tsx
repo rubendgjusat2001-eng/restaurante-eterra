@@ -27,13 +27,50 @@ export function StaffManagementView() {
     showToast,
     positions,
     addPosition,
-    removePosition
+    removePosition,
+    permissions,
+    savePermission
   } = useRestaurant();
 
   const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'cargos' | 'roles' | 'shifts'>('users');
   const [staffInDetail, setStaffInDetail] = useState<StaffUser | null>(null);
   const [newPositionName, setNewPositionName] = useState('');
   const [newPositionDescription, setNewPositionDescription] = useState('');
+
+  // Permisos de Roles (Fase G) — el Dueño siempre tiene acceso total, no se
+  // edita aquí. Solo se configuran los demás roles de acceso (Nivel 1).
+  const EDITABLE_ROLES = [
+    { id: 'manager', label: 'Administrador / Gerente' },
+    { id: 'cashier', label: 'Cajero' },
+    { id: 'waiter', label: 'Mozo de Salón' },
+    { id: 'waiter_cashier', label: 'Mozo-Caja' },
+    { id: 'kitchen', label: 'Cocinero (KDS)' },
+    { id: 'bar', label: 'Bartender' }
+  ];
+  const PERMISSION_MODULES = [
+    { id: 'waiter', label: 'Salón & Mesas' },
+    { id: 'kitchen', label: 'KDS Cocina & Bar' },
+    { id: 'cashier', label: 'Caja & Facturación' },
+    { id: 'owner', label: 'Dashboard & KPIs' },
+    { id: 'dishes', label: 'Carta & Platos' },
+    { id: 'staff', label: 'Personal & Roles' },
+    { id: 'settings', label: 'Configuración General' }
+  ];
+  const [selectedPermRole, setSelectedPermRole] = useState(EDITABLE_ROLES[0].id);
+
+  const getPerm = (role: string, moduleId: string) =>
+    permissions.find(p => p.role === role && p.module === moduleId);
+
+  const handleTogglePermission = (moduleId: string, field: 'canView' | 'canEdit' | 'canDelete', value: boolean) => {
+    const current = getPerm(selectedPermRole, moduleId);
+    savePermission({
+      role: selectedPermRole,
+      module: moduleId,
+      canView: field === 'canView' ? value : (current?.canView ?? false),
+      canEdit: field === 'canEdit' ? value : (current?.canEdit ?? false),
+      canDelete: field === 'canDelete' ? value : (current?.canDelete ?? false)
+    });
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -164,6 +201,71 @@ export function StaffManagementView() {
 
       {activeTab === 'accounts' ? (
         <AccessAccountsPanel />
+      ) : activeTab === 'roles' ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 animate-in fade-in">
+          <div>
+            <h3 className="text-base font-black text-slate-900">Permisos de Roles</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Configura qué pantallas puede ver, editar o eliminar cada rol de <strong>cuenta de acceso</strong> (Nivel 1).
+              El Dueño siempre tiene acceso total y no se configura aquí. El PIN de Personal (Nivel 2) nunca tiene
+              permisos propios — solo identifica quién realiza una acción.
+            </p>
+          </div>
+
+          {permissions.length === 0 && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs">
+              Todavía no se cargaron permisos desde la base de datos — si recién configuraste el sistema, corre la
+              migración <code className="font-mono">011_role_permissions.sql</code>. Mientras tanto, todos los roles
+              ven todo (igual que antes de esta función).
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">Seleccionar Rol</label>
+            <select
+              value={selectedPermRole}
+              onChange={e => setSelectedPermRole(e.target.value)}
+              className="w-full sm:w-72 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-slate-400"
+            >
+              {EDITABLE_ROLES.map(r => (
+                <option key={r.id} value={r.id}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3 px-4">Módulo</th>
+                  <th className="py-3 px-4 text-center">Ver</th>
+                  <th className="py-3 px-4 text-center">Crear / Editar</th>
+                  <th className="py-3 px-4 text-center">Eliminar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {PERMISSION_MODULES.map(mod => {
+                  const perm = getPerm(selectedPermRole, mod.id);
+                  return (
+                    <tr key={mod.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-bold text-slate-900">{mod.label}</td>
+                      {(['canView', 'canEdit', 'canDelete'] as const).map(field => (
+                        <td key={field} className="py-3 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={perm?.[field] ?? false}
+                            onChange={e => handleTogglePermission(mod.id, field, e.target.checked)}
+                            className="w-4 h-4 accent-cyan-700 cursor-pointer"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : activeTab === 'cargos' ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 max-w-2xl animate-in fade-in">
           <div>

@@ -37,14 +37,15 @@ export function SidebarDrawer({
   onOpenCashDrawer,
   onGoToPublic
 }: SidebarDrawerProps) {
-  const { 
-    restaurant, 
-    currentUser, 
+  const {
+    restaurant,
+    currentUser,
     currentThemeColors,
-    logoutStaff, 
-    staff, 
-    tables, 
-    orders 
+    logoutStaff,
+    staff,
+    tables,
+    orders,
+    canView
   } = useRestaurant();
 
   const tablesOccupied = tables.filter(t => t.status !== 'available').length;
@@ -54,7 +55,10 @@ export function SidebarDrawer({
     .filter(i => i.status === 'queued' || i.status === 'preparing').length;
   const billsRequested = tables.filter(t => t.status === 'bill_requested').length;
 
-  const isOwnerOrManager = currentUser?.role === 'owner' || currentUser?.role === 'manager';
+  // Visibilidad de la navegación según Permisos de Roles (Fase G) — mismo
+  // comportamiento que antes por defecto (ver semilla de la migración 011),
+  // ahora configurable desde Personal → Permisos de Roles.
+  const showGestionSection = canView('owner') || canView('dishes') || canView('staff');
 
   const handleSelectTab = (tab: InternalTab) => {
     sounds.playClick();
@@ -143,6 +147,7 @@ export function SidebarDrawer({
             </h4>
             <nav className="space-y-1">
               {/* Salón & Mesas */}
+              {canView('waiter') && (
               <button
                 onClick={() => handleSelectTab('waiter')}
                 style={getItemStyle('waiter')}
@@ -163,8 +168,10 @@ export function SidebarDrawer({
                   </span>
                 )}
               </button>
+              )}
 
               {/* KDS Cocina & Bar */}
+              {canView('kitchen') && (
               <button
                 onClick={() => handleSelectTab('kitchen')}
                 style={getItemStyle('kitchen')}
@@ -184,8 +191,10 @@ export function SidebarDrawer({
                   </span>
                 )}
               </button>
+              )}
 
               {/* Caja & Facturación */}
+              {canView('cashier') && (
               <button
                 onClick={() => handleSelectTab('cashier')}
                 style={getItemStyle('cashier')}
@@ -206,17 +215,19 @@ export function SidebarDrawer({
                   </span>
                 )}
               </button>
+              )}
             </nav>
           </div>
 
-          {/* SECCIÓN B: GESTIÓN & ADMINISTRACIÓN (Solo Owner / Gerente) */}
-          {isOwnerOrManager && (
+          {/* SECCIÓN B: GESTIÓN & ADMINISTRACIÓN (según Permisos de Roles) */}
+          {showGestionSection && (
             <div>
               <h4 className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                 Gestión
               </h4>
               <nav className="space-y-1">
                 {/* Dashboard */}
+                {canView('owner') && (
                 <button
                   onClick={() => handleSelectTab('owner')}
                   style={getItemStyle('owner')}
@@ -229,8 +240,10 @@ export function SidebarDrawer({
                     <span>Dashboard & KPIs</span>
                   </div>
                 </button>
+                )}
 
                 {/* Carta & Platos */}
+                {canView('dishes') && (
                 <button
                   onClick={() => handleSelectTab('dishes')}
                   style={getItemStyle('dishes')}
@@ -243,8 +256,10 @@ export function SidebarDrawer({
                     <span>Carta & Platos</span>
                   </div>
                 </button>
+                )}
 
                 {/* Personal & Roles (Estilo Imagen 3) */}
+                {canView('staff') && (
                 <button
                   onClick={() => handleSelectTab('staff')}
                   style={getItemStyle('staff')}
@@ -256,13 +271,14 @@ export function SidebarDrawer({
                     <Users className="w-4 h-4" />
                     <span>Personal & Roles</span>
                   </div>
-                  <span 
+                  <span
                     style={activeTab === 'staff' ? { backgroundColor: '#ffffff', color: primaryColor } : {}}
                     className="text-[10px] text-slate-600 font-bold bg-slate-100 px-1.5 py-0.2 rounded font-mono"
                   >
                     {staff.length}
                   </span>
                 </button>
+                )}
               </nav>
             </div>
           )}
@@ -273,7 +289,7 @@ export function SidebarDrawer({
               Sistema
             </h4>
             <nav className="space-y-1">
-              {currentUser?.role === 'owner' && (
+              {canView('settings') && (
                 <button
                   onClick={() => handleSelectTab('settings')}
                   style={getItemStyle('settings')}
