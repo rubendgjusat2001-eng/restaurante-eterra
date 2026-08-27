@@ -14,6 +14,7 @@ import { CashierDesk } from '@/components/internal/CashierDesk';
 import { CashDrawerModal } from '@/components/internal/CashDrawerModal';
 import { OwnerDashboard } from '@/components/internal/OwnerDashboard';
 import { StaffManagementView } from '@/components/internal/StaffManagementView';
+import { AlmacenView } from '@/components/internal/AlmacenView';
 import { DishManagementView } from '@/components/internal/DishManagementView';
 import { SettingsView } from '@/components/internal/SettingsView';
 import { SystemLoginScreen } from '@/components/common/SystemLoginScreen';
@@ -26,6 +27,7 @@ const TAB_TO_PATH: Record<InternalTab, string> = {
   owner: 'dashboard',
   dishes: 'carta',
   staff: 'personal',
+  warehouse: 'almacen',
   settings: 'configuracion',
   shift: 'caja'
 };
@@ -45,6 +47,8 @@ const PATH_TO_TAB: Record<string, InternalTab> = {
   personal: 'staff',
   roles: 'staff',
   usuarios: 'staff',
+  almacen: 'warehouse',
+  inventario: 'warehouse',
   configuracion: 'settings',
   ajustes: 'settings'
 };
@@ -185,6 +189,7 @@ export function SistemaApp({ initialSection }: SistemaAppProps) {
             {internalTab === 'owner' && <OwnerDashboard />}
             {internalTab === 'dishes' && <DishManagementView />}
             {internalTab === 'staff' && <StaffManagementView />}
+            {internalTab === 'warehouse' && <AlmacenView />}
             {internalTab === 'settings' && <SettingsView />}
           </main>
 

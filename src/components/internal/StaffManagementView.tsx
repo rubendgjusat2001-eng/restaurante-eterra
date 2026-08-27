@@ -54,6 +54,7 @@ export function StaffManagementView() {
     { id: 'owner', label: 'Dashboard & KPIs' },
     { id: 'dishes', label: 'Carta & Platos' },
     { id: 'staff', label: 'Personal & Roles' },
+    { id: 'warehouse', label: 'Almacén' },
     { id: 'settings', label: 'Configuración General' }
   ];
   const [selectedPermRole, setSelectedPermRole] = useState(EDITABLE_ROLES[0].id);

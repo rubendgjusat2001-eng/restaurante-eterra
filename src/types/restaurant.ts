@@ -309,6 +309,38 @@ export interface CashShift {
   notes?: string;
 }
 
+export interface WarehouseSupplier {
+  id: string;
+  name: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}
+
+export interface WarehouseItem {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  currentStock: number;
+  minStock: number;
+  supplierId?: string;
+  notes?: string;
+}
+
+export type WarehouseMovementType = 'in' | 'out' | 'adjustment';
+
+export interface WarehouseMovement {
+  id: string;
+  itemId: string;
+  movementType: WarehouseMovementType;
+  quantity: number;
+  reason: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
 export interface CashMovement {
   id: string;
   shiftId: string;

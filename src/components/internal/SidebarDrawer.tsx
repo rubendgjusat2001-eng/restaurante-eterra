@@ -3,19 +3,20 @@
 import React from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { InternalTab } from './InternalNavbar';
-import { 
-  LayoutGrid, 
-  ChefHat, 
-  Receipt, 
-  BarChart3, 
-  Utensils, 
-  Users, 
-  Settings, 
-  Coins, 
-  Globe, 
+import {
+  LayoutGrid,
+  ChefHat,
+  Receipt,
+  BarChart3,
+  Utensils,
+  Users,
+  Settings,
+  Coins,
+  Globe,
   LogOut,
   X,
-  ChevronRight
+  ChevronRight,
+  Package
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
@@ -58,7 +59,7 @@ export function SidebarDrawer({
   // Visibilidad de la navegación según Permisos de Roles (Fase G) — mismo
   // comportamiento que antes por defecto (ver semilla de la migración 011),
   // ahora configurable desde Personal → Permisos de Roles.
-  const showGestionSection = canView('owner') || canView('dishes') || canView('staff');
+  const showGestionSection = canView('owner') || canView('dishes') || canView('staff') || canView('warehouse');
 
   const handleSelectTab = (tab: InternalTab) => {
     sounds.playClick();
@@ -277,6 +278,22 @@ export function SidebarDrawer({
                   >
                     {staff.length}
                   </span>
+                </button>
+                )}
+
+                {/* Almacén */}
+                {canView('warehouse') && (
+                <button
+                  onClick={() => handleSelectTab('warehouse')}
+                  style={getItemStyle('warehouse')}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'warehouse' ? '' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Package className="w-4 h-4" />
+                    <span>Almacén</span>
+                  </div>
                 </button>
                 )}
               </nav>

@@ -30,6 +30,7 @@ import { useAuditLog } from '@/hooks/use-audit-log';
 import { useStaff } from '@/hooks/use-staff';
 import { useStaffPositions } from '@/hooks/use-staff-positions';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useWarehouse } from '@/hooks/use-warehouse';
 import { useAuth } from '@/hooks/use-auth';
 import { useRestaurantProfile } from '@/hooks/use-restaurant-profile';
 import { useMenu } from '@/hooks/use-menu';
@@ -103,6 +104,15 @@ interface RestaurantContextType {
   canEdit: (module: string) => boolean;
   canDelete: (module: string) => boolean;
   savePermission: (input: { role: string; module: string; canView: boolean; canEdit: boolean; canDelete: boolean }) => Promise<void>;
+
+  // Almacén (Fase H)
+  warehouseItems: import('@/types/restaurant').WarehouseItem[];
+  suppliers: import('@/types/restaurant').WarehouseSupplier[];
+  addWarehouseItem: (item: { name: string; category: string; unit: string; currentStock: number; minStock: number; supplierId?: string; notes?: string }) => Promise<import('@/types/restaurant').WarehouseItem | null>;
+  removeWarehouseItem: (id: string, name: string) => Promise<void>;
+  registerStockMovement: (input: { itemId: string; movementType: 'in' | 'out' | 'adjustment'; quantity: number; reason: string }) => Promise<void>;
+  addSupplier: (supplier: { name: string; contactName?: string; phone?: string; email?: string; notes?: string }) => Promise<import('@/types/restaurant').WarehouseSupplier | null>;
+  removeSupplier: (id: string, name: string) => Promise<void>;
   verifyStaffPin: (staffId: string, pin: string) => Promise<StaffUser | null>;
   requestStaffIdentity: (preselect?: StaffUser | null) => Promise<StaffUser | null>;
   resolveStaffIdentity: (result: StaffUser | null) => void;
@@ -238,6 +248,11 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     addAuditLog: auditApi.addAuditLog
   });
   const permissionsApi = usePermissions({ role: authApi.currentUser?.role, isPrivateRoute });
+  const warehouseApi = useWarehouse({
+    isPrivateRoute,
+    currentUserName: authApi.currentUser?.name,
+    showToast: toastsApi.showToast
+  });
 
   useEffect(() => {
     currentUserRef.current = authApi.currentUser;
@@ -363,6 +378,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     ...staffApi,
     ...staffPositionsApi,
     ...permissionsApi,
+    ...warehouseApi,
     ...authApi,
     purgeAllDataToZero,
     resetToDemoData,

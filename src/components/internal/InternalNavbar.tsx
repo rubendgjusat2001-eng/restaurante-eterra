@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { sounds, formatMoney } from '@/lib/utils';
 
-export type InternalTab = 'waiter' | 'kitchen' | 'cashier' | 'owner' | 'dishes' | 'staff' | 'settings' | 'shift';
+export type InternalTab = 'waiter' | 'kitchen' | 'cashier' | 'owner' | 'dishes' | 'staff' | 'warehouse' | 'settings' | 'shift';
 
 interface InternalNavbarProps {
   activeTab: InternalTab;
