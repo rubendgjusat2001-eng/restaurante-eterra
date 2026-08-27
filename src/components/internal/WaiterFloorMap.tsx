@@ -26,25 +26,28 @@ import {
   AlertTriangle,
   CheckCircle2,
   SlidersHorizontal,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 
 export function WaiterFloorMap() {
-  const { 
-    tables, 
-    orders, 
-    activeZone, 
-    setActiveZone, 
-    openTable, 
-    cleanTable, 
-    transferTable, 
+  const {
+    tables,
+    orders,
+    activeZone,
+    setActiveZone,
+    openTable,
+    cleanTable,
+    transferTable,
     addTable,
+    updateTable,
     deleteTable,
     resetToDemoData,
     currentUser,
     staff,
     activeShift,
-    requestStaffIdentity
+    requestStaffIdentity,
+    zones
   } = useRestaurant();
 
   // Estados de modales operativos
@@ -60,8 +63,15 @@ export function WaiterFloorMap() {
   // Modal de Crear Nueva Mesa
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState<boolean>(false);
   const [newTableNumber, setNewTableNumber] = useState<string>('');
-  const [newTableZone, setNewTableZone] = useState<'Principal' | 'Terraza Marina' | 'Zona VIP' | 'Barra'>('Principal');
+  const [newTableZone, setNewTableZone] = useState<string>('Principal');
   const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
+
+  // Modal de Editar Mesa (Fase D — antes `updateTable` existía pero no tenía
+  // ningún botón que lo llamara; ver docs/decisions/0007-configurable-zones.md)
+  const [tableToEdit, setTableToEdit] = useState<Table | null>(null);
+  const [editNumber, setEditNumber] = useState<string>('');
+  const [editZone, setEditZone] = useState<string>('');
+  const [editCapacity, setEditCapacity] = useState<number>(4);
 
   // Modal de Inspector de Integridad de Datos
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState<boolean>(false);
@@ -108,16 +118,26 @@ export function WaiterFloorMap() {
   const cleaningCount = visibleTables.filter(t => t.status === 'cleaning').length;
   const totalVisible = visibleTables.length;
 
+  // Nombres de zona: unión de lo configurado en Configuración (`zones`, ya
+  // persistido en Supabase) y cualquier zona que ya tengan mesas existentes
+  // (defensivo — sigue funcionando aunque la migración de zonas todavía no
+  // se haya corrido, o si una mesa quedó con un nombre de zona que ya no
+  // está en el catálogo).
+  const zoneNames = useMemo(() => {
+    const fromCatalog = zones.map(z => z.name);
+    const fromTables = Array.from(new Set(tables.map(t => t.zone).filter(Boolean)));
+    const merged = Array.from(new Set([...fromCatalog, ...fromTables]));
+    return merged.length > 0 ? merged : ['Principal'];
+  }, [zones, tables]);
+
   // Conteo de mesas por zona para los badges de las pestañas
   const zoneCounts = useMemo(() => {
-    return {
-      all: tables.length,
-      Principal: tables.filter(t => t.zone === 'Principal').length,
-      'Terraza Marina': tables.filter(t => t.zone === 'Terraza Marina').length,
-      'Zona VIP': tables.filter(t => t.zone === 'Zona VIP').length,
-      Barra: tables.filter(t => t.zone === 'Barra').length
-    };
-  }, [tables]);
+    const counts: Record<string, number> = { all: tables.length };
+    zoneNames.forEach(zoneName => {
+      counts[zoneName] = tables.filter(t => t.zone === zoneName).length;
+    });
+    return counts;
+  }, [tables, zoneNames]);
 
   // Verificación de Integridad de Datos en Tiempo Real
   const diagnosticReport = useMemo(() => {
@@ -193,6 +213,34 @@ export function WaiterFloorMap() {
     setNewTableNumber('');
   };
 
+  const openEditTable = (table: Table, e: React.MouseEvent) => {
+    e.stopPropagation();
+    sounds.playClick();
+    setTableToEdit(table);
+    setEditNumber(table.number);
+    setEditZone(table.zone);
+    setEditCapacity(table.capacity);
+  };
+
+  const handleSaveEditTable = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tableToEdit || !editNumber.trim()) return;
+    updateTable(tableToEdit.id, {
+      number: editNumber.trim().toUpperCase(),
+      zone: editZone,
+      capacity: editCapacity
+    });
+    setTableToEdit(null);
+  };
+
+  const handleDeleteEditedTable = () => {
+    if (!tableToEdit) return;
+    if (confirm(`¿Eliminar la mesa ${tableToEdit.number} del plano?`)) {
+      const deleted = deleteTable(tableToEdit.id);
+      if (deleted) setTableToEdit(null);
+    }
+  };
+
   const handleExportJSON = () => {
     const dataToExport = {
       timestamp: new Date().toISOString(),
@@ -228,10 +276,7 @@ export function WaiterFloorMap() {
           <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-slate-100 border border-slate-200 rounded-lg text-xs">
             {[
               { id: 'all', label: 'Todo el Local', count: zoneCounts.all },
-              { id: 'Principal', label: 'Salón Principal', count: zoneCounts.Principal },
-              { id: 'Terraza Marina', label: 'Terraza Marina', count: zoneCounts['Terraza Marina'] },
-              { id: 'Zona VIP', label: 'Zona VIP', count: zoneCounts['Zona VIP'] },
-              { id: 'Barra', label: 'Barra', count: zoneCounts.Barra }
+              ...zoneNames.map(zoneName => ({ id: zoneName, label: zoneName, count: zoneCounts[zoneName] || 0 }))
             ].map(zone => (
               <button
                 key={zone.id}
@@ -260,7 +305,9 @@ export function WaiterFloorMap() {
             <button
               onClick={() => {
                 sounds.playClick();
-                setNewTableNumber(activeZone === 'Terraza Marina' ? `T-0${zoneCounts['Terraza Marina'] + 1}` : `M-0${zoneCounts.Principal + 1}`);
+                const suggestedZone = activeZone !== 'all' ? activeZone : (zoneNames[0] || 'Principal');
+                setNewTableZone(suggestedZone);
+                setNewTableNumber(`M-0${(zoneCounts[suggestedZone] || 0) + 1}`);
                 setIsAddTableModalOpen(true);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold transition-all shadow-xs"
@@ -356,7 +403,7 @@ export function WaiterFloorMap() {
           <p className="text-xs text-slate-500 mt-1 mb-4">Puedes crear una nueva mesa para este salón con el botón inferior.</p>
           <button
             onClick={() => {
-              setNewTableZone(activeZone as any);
+              setNewTableZone(activeZone !== 'all' ? activeZone : (zoneNames[0] || 'Principal'));
               setIsAddTableModalOpen(true);
             }}
             className="px-4 py-2 bg-cyan-700 text-white rounded-lg text-xs font-bold shadow-xs"
@@ -412,9 +459,19 @@ export function WaiterFloorMap() {
                       </span>
                     </div>
 
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-wider uppercase border ${statusBadgeBg}`}>
-                      {statusLabel}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={e => openEditTable(table, e)}
+                        className="p-1 rounded-md text-slate-300 hover:text-cyan-700 hover:bg-cyan-50 transition-colors"
+                        title="Editar mesa"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-wider uppercase border ${statusBadgeBg}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="h-px bg-slate-100 my-2" />
@@ -645,14 +702,16 @@ export function WaiterFloorMap() {
               <label className="text-xs font-bold text-slate-700 block mb-1">Salón / Zona</label>
               <select
                 value={newTableZone}
-                onChange={e => setNewTableZone(e.target.value as any)}
+                onChange={e => setNewTableZone(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 font-medium focus:outline-none"
               >
-                <option value="Principal">Salón Principal</option>
-                <option value="Terraza Marina">Terraza Marina</option>
-                <option value="Zona VIP">Zona VIP</option>
-                <option value="Barra">Barra Sensorial</option>
+                {zoneNames.map(zoneName => (
+                  <option key={zoneName} value={zoneName}>{zoneName}</option>
+                ))}
               </select>
+              <p className="text-[10px] text-slate-400 mt-1">
+                ¿Falta una zona? Créala primero en Configuración → Zonas del Local.
+              </p>
             </div>
 
             <div>
@@ -694,6 +753,95 @@ export function WaiterFloorMap() {
         </div>
       )}
 
+      {/* 4.5. Modal de Editar Mesa (número, zona, capacidad) */}
+      {tableToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <form onSubmit={handleSaveEditTable} className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl text-slate-900 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                <Pencil className="w-4 h-4 text-cyan-700" />
+                Editar Mesa {tableToEdit.number}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTableToEdit(null)}
+                className="p-1 text-slate-400 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Identificador / Número de Mesa</label>
+              <input
+                type="text"
+                value={editNumber}
+                onChange={e => setEditNumber(e.target.value)}
+                required
+                className="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-lg text-xs font-bold text-slate-900 uppercase font-mono focus:outline-none focus:border-cyan-600"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Salón / Zona</label>
+              <select
+                value={editZone}
+                onChange={e => setEditZone(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-lg text-xs text-slate-900 font-medium focus:outline-none"
+              >
+                {zoneNames.map(zoneName => (
+                  <option key={zoneName} value={zoneName}>{zoneName}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Capacidad Máxima (Comensales)</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[2, 4, 6, 8].map(cap => (
+                  <button
+                    key={cap}
+                    type="button"
+                    onClick={() => setEditCapacity(cap)}
+                    className={`py-2 rounded-lg font-bold text-xs ${
+                      editCapacity === cap
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 border border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {cap} pers.
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDeleteEditedTable}
+                className="p-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700"
+                title="Eliminar mesa"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableToEdit(null)}
+                className="flex-1 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold shadow-xs"
+              >
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* 5. Modal de Diagnóstico & Integridad de Datos en Tiempo Real */}
       {isDiagnosticOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
@@ -722,7 +870,7 @@ export function WaiterFloorMap() {
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <span className="text-slate-500 text-[10px] uppercase font-bold">Mesas Registradas:</span>
                 <p className="text-lg font-black text-slate-900 font-mono">{tables.length} mesas</p>
-                <span className="text-[10px] text-slate-500 block">4 zonas activas</span>
+                <span className="text-[10px] text-slate-500 block">{zoneNames.length} {zoneNames.length === 1 ? 'zona activa' : 'zonas activas'}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
@@ -750,10 +898,12 @@ export function WaiterFloorMap() {
             <div className="space-y-1.5 text-xs">
               <h5 className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Desglose de Mesas por Zona:</h5>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1 text-[11px]">
-                <div className="flex justify-between"><span>Salón Principal:</span><strong className="font-mono">{zoneCounts.Principal} mesas</strong></div>
-                <div className="flex justify-between"><span>Terraza Marina:</span><strong className="font-mono">{zoneCounts['Terraza Marina']} mesas</strong></div>
-                <div className="flex justify-between"><span>Zona VIP:</span><strong className="font-mono">{zoneCounts['Zona VIP']} mesas</strong></div>
-                <div className="flex justify-between"><span>Barra Sensorial:</span><strong className="font-mono">{zoneCounts.Barra} mesas</strong></div>
+                {zoneNames.map(zoneName => (
+                  <div key={zoneName} className="flex justify-between">
+                    <span>{zoneName}:</span>
+                    <strong className="font-mono">{zoneCounts[zoneName] || 0} mesas</strong>
+                  </div>
+                ))}
               </div>
             </div>
 

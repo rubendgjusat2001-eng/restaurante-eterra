@@ -32,6 +32,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRestaurantProfile } from '@/hooks/use-restaurant-profile';
 import { useMenu } from '@/hooks/use-menu';
 import { useTables } from '@/hooks/use-tables';
+import { useZones } from '@/hooks/use-zones';
 import { useOrders } from '@/hooks/use-orders';
 import { useTableLifecycle } from '@/hooks/use-table-lifecycle';
 import { useCashShifts } from '@/hooks/use-cash-shifts';
@@ -106,10 +107,16 @@ interface RestaurantContextType {
   transferTable: (sourceId: string, targetId: string) => boolean;
   requestTableBill: (tableId: string) => void;
   cleanTable: (tableId: string) => void;
-  addTable: (tableData: { number: string; zone: 'Principal' | 'Terraza Marina' | 'Zona VIP' | 'Barra'; capacity: number }) => void;
+  addTable: (tableData: { number: string; zone: string; capacity: number }) => void;
   updateTable: (tableId: string, updates: Partial<Table>) => void;
   deleteTable: (tableId: string) => boolean;
   resetToDemoData: () => void;
+
+  // Zonas del local (Fase D, configurables)
+  zones: { id: string; name: string; sortOrder: number }[];
+  addZone: (name: string) => Promise<{ id: string; name: string; sortOrder: number } | null>;
+  renameZone: (id: string, name: string) => Promise<void>;
+  removeZone: (id: string) => Promise<void>;
 
   // Comandas y Pedidos
   orders: Order[];
@@ -224,6 +231,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
+  const zonesApi = useZones({ isPrivateRoute });
   const ordersApi = useOrders({
     isPrivateRoute,
     showToast: toastsApi.showToast,
@@ -331,6 +339,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     resetToDemoData,
     ...menuApi,
     ...tablesApi,
+    ...zonesApi,
     ...ordersApi,
     ...tableLifecycleApi,
     ...cashShiftsApi,

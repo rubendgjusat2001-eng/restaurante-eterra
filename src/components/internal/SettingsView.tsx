@@ -4,31 +4,46 @@ import React, { useState } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { GastroThemePreset } from '@/types/restaurant';
 import { GASTRO_THEMES } from '@/lib/constants';
-import { 
-  Building2, 
-  Palette, 
-  ShieldCheck, 
-  RotateCcw, 
-  Save, 
-  Check, 
+import {
+  Building2,
+  Palette,
+  ShieldCheck,
+  RotateCcw,
+  Save,
+  Check,
   ChevronRight,
-  KeyRound
+  KeyRound,
+  MapPin,
+  Plus,
+  Pencil,
+  Trash2,
+  X
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 
 export function SettingsView() {
-  const { 
-    restaurant, 
+  const {
+    restaurant,
     currentThemeColors,
-    updateRestaurantInfo, 
-    setThemePreset, 
-    updateOwnerPassword, 
+    updateRestaurantInfo,
+    setThemePreset,
+    updateOwnerPassword,
     forceLogoutAllDevices,
-    purgeAllDataToZero, 
-    showToast 
+    purgeAllDataToZero,
+    showToast,
+    zones,
+    addZone,
+    renameZone,
+    removeZone,
+    tables
   } = useRestaurant();
 
-  const [activeTab, setActiveTab] = useState<'info' | 'theme' | 'security' | 'maintenance'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'zones' | 'theme' | 'security' | 'maintenance'>('info');
+
+  // Zonas del Local (Fase D)
+  const [newZoneName, setNewZoneName] = useState('');
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [editZoneName, setEditZoneName] = useState('');
 
   const primaryColor = currentThemeColors.primary || '#0284c7';
   const primaryHover = currentThemeColors.primaryHover || '#0369a1';
@@ -74,6 +89,43 @@ export function SettingsView() {
     sounds.playClick();
   };
 
+  const handleAddZone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newZoneName.trim()) return;
+    const created = await addZone(newZoneName.trim());
+    if (created) {
+      setNewZoneName('');
+      sounds.playClick();
+      showToast('success', `Zona "${created.name}" creada`);
+    } else {
+      showToast('error', 'No se pudo crear la zona');
+    }
+  };
+
+  const handleStartEditZone = (id: string, currentName: string) => {
+    setEditingZoneId(id);
+    setEditZoneName(currentName);
+  };
+
+  const handleSaveEditZone = async (id: string) => {
+    if (!editZoneName.trim()) return;
+    await renameZone(id, editZoneName.trim());
+    setEditingZoneId(null);
+    sounds.playClick();
+    showToast('success', 'Zona actualizada');
+  };
+
+  const handleDeleteZone = async (id: string, name: string) => {
+    const tablesInZone = tables.filter(t => t.zone === name).length;
+    const warning = tablesInZone > 0
+      ? `Esta zona tiene ${tablesInZone} mesa(s) asignada(s) — no se borrarán, pero quedarán con una zona que ya no está en el catálogo. ¿Eliminar de todas formas?`
+      : `¿Eliminar la zona "${name}"?`;
+    if (!confirm(warning)) return;
+    await removeZone(id);
+    sounds.playClick();
+    showToast('info', `Zona "${name}" eliminada`);
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPass || newPass.length < 6) {
@@ -109,6 +161,7 @@ export function SettingsView() {
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200 overflow-x-auto">
         {[
           { id: 'info', label: 'Datos del Local & Web', icon: Building2 },
+          { id: 'zones', label: 'Zonas del Local', icon: MapPin },
           { id: 'theme', label: 'Estética & Paleta del Sistema', icon: Palette },
           { id: 'security', label: 'Seguridad & Clave Owner', icon: ShieldCheck },
           { id: 'maintenance', label: 'Zona de Mantenimiento', icon: RotateCcw },
@@ -258,6 +311,104 @@ export function SettingsView() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* PESTAÑA ZONAS DEL LOCAL (Fase D) */}
+      {activeTab === 'zones' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 max-w-2xl animate-in fade-in">
+          <div>
+            <h3 className="text-base font-black text-slate-900">Zonas / Salones del Local</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Configura los nombres de zona que vas a usar en Mesas (ej. "Salón Principal", "Terraza", "Barra") —
+              se adaptan a cualquier tipo de restaurante, no están fijos.
+            </p>
+          </div>
+
+          <form onSubmit={handleAddZone} className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Nombre de la nueva zona"
+              value={newZoneName}
+              onChange={e => setNewZoneName(e.target.value)}
+              className="flex-1 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
+            />
+            <button
+              type="submit"
+              style={{ backgroundColor: primaryColor }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs cursor-pointer hover:opacity-90 shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Agregar Zona</span>
+            </button>
+          </form>
+
+          <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+            {zones.length === 0 ? (
+              <p className="text-center py-8 text-xs text-slate-400">No hay zonas configuradas todavía</p>
+            ) : (
+              zones.map(zone => {
+                const count = tables.filter(t => t.zone === zone.name).length;
+                return (
+                  <div key={zone.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/80">
+                    {editingZoneId === zone.id ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editZoneName}
+                          onChange={e => setEditZoneName(e.target.value)}
+                          className="flex-1 bg-white border border-cyan-400 px-3 py-1.5 rounded-lg text-xs text-slate-900 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditZone(zone.id)}
+                          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingZoneId(null)}
+                          className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-xs font-bold text-slate-900">{zone.name}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-mono font-bold">
+                            {count} {count === 1 ? 'mesa' : 'mesas'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditZone(zone.id, zone.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-700 hover:bg-cyan-50"
+                            title="Renombrar zona"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteZone(zone.id, zone.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            title="Eliminar zona"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
 
       {/* PESTAÑA 2: ESTÉTICA & PALETA DEL SISTEMA */}

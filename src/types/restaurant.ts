@@ -118,7 +118,8 @@ export type TableStatus =
 export interface Table {
   id: string;
   number: string;
-  zone: 'Principal' | 'Terraza Marina' | 'Zona VIP' | 'Barra';
+  /** Nombre de zona configurable (Fase D) — ver restaurant_zones / use-zones.ts. */
+  zone: string;
   capacity: number;
   status: TableStatus;
   currentOrderId?: string;

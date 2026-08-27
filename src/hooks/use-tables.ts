@@ -51,6 +51,9 @@ export function useTables({ isPrivateRoute, showToast, addAuditLog }: UseTablesD
             const updated = payload.new as any;
             setTables(prev => prev.map(t => t.id === updated.id ? {
               ...t,
+              number: updated.number,
+              zone: updated.zone,
+              capacity: updated.capacity,
               status: updated.status,
               customerCount: updated.customer_count,
               currentOrderId: updated.current_order_id,
@@ -127,7 +130,7 @@ export function useTables({ isPrivateRoute, showToast, addAuditLog }: UseTablesD
     showToast('success', 'Mesa limpia y disponible para nuevos clientes');
   };
 
-  const addTable = (tableData: { number: string; zone: 'Principal' | 'Terraza Marina' | 'Zona VIP' | 'Barra'; capacity: number }) => {
+  const addTable = (tableData: { number: string; zone: string; capacity: number }) => {
     const newId = `tbl-${Date.now()}`;
     const newTable: Table = {
       id: newId,
