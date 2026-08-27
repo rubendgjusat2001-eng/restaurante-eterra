@@ -25,15 +25,20 @@ interface UseRestaurantProfileDeps {
  * RestaurantContext.tsx (Fase 2a: reorganización, sin cambiar comportamiento).
  */
 export function useRestaurantProfile({ showToast, onRestaurantRealtimeSignal }: UseRestaurantProfileDeps) {
-  const [restaurant, setRestaurant] = useState<RestaurantInfo>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('eterra_restaurant_info');
-      if (saved) {
-        try { return JSON.parse(saved); } catch {}
-      }
+  // Arranca siempre con el mismo valor que renderiza el servidor (evita un
+  // desajuste de hidratación) y recién aplica lo guardado en localStorage
+  // dentro de un useEffect, después de que el cliente ya hidrató.
+  const [restaurant, setRestaurant] = useState<RestaurantInfo>(INITIAL_RESTAURANT);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('eterra_restaurant_info');
+    if (saved) {
+      try {
+        setRestaurant(JSON.parse(saved));
+      } catch {}
     }
-    return INITIAL_RESTAURANT;
-  });
+  }, []);
 
   const currentThemeColors: ThemeColors = restaurant.themePreset === 'custom' && restaurant.customTheme
     ? restaurant.customTheme

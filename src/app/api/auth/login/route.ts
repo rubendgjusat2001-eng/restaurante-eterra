@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   const { data: account } = await supabase
     .from('access_accounts')
-    .select('id, username, display_name, role, password_hash, active, restaurant_id')
+    .select('id, username, display_name, role, password_hash, active, restaurant_id, must_change_password')
     .eq('username', username)
     .maybeSingle();
 
@@ -36,19 +36,22 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   const authVersion = restaurantRow?.auth_version ?? 1;
+  const mustChangePassword = Boolean(account.must_change_password);
 
   await createSession({
     accountId: account.id,
     role: account.role,
     displayName: account.display_name,
     restaurantId: account.restaurant_id,
-    authVersion
+    authVersion,
+    mustChangePassword
   });
 
   return NextResponse.json({
     accountId: account.id,
     role: account.role,
     displayName: account.display_name,
-    restaurantId: account.restaurant_id
+    restaurantId: account.restaurant_id,
+    mustChangePassword
   });
 }

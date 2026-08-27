@@ -14,7 +14,7 @@ export async function GET() {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from('access_accounts')
-    .select('id, username, display_name, role, active, created_at')
+    .select('id, username, display_name, email, role, active, must_change_password, created_at')
     .eq('restaurant_id', session.restaurantId)
     .order('created_at', { ascending: true });
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       password_hash: passwordHash,
       active: true
     })
-    .select('id, username, display_name, role, active, created_at')
+    .select('id, username, display_name, email, role, active, must_change_password, created_at')
     .single();
 
   if (error) {

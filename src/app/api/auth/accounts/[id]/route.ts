@@ -14,6 +14,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updates: Record<string, unknown> = {};
   if (typeof body?.active === 'boolean') updates.active = body.active;
   if (typeof body?.displayName === 'string' && body.displayName.trim()) updates.display_name = body.displayName.trim();
+  if (typeof body?.username === 'string' && body.username.trim()) updates.username = body.username.trim().toLowerCase();
+  if (typeof body?.email === 'string') updates.email = body.email.trim().toLowerCase() || null;
   if (typeof body?.role === 'string' && body.role) updates.role = body.role;
   if (typeof body?.newPassword === 'string' && body.newPassword.length >= 6) {
     updates.password_hash = await bcrypt.hash(body.newPassword, 10);
@@ -31,7 +33,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('restaurant_id', session.restaurantId);
 
   if (error) {
-    return NextResponse.json({ error: 'No se pudo actualizar la cuenta' }, { status: 500 });
+    const message = error.code === '23505' ? 'Ese nombre de usuario ya existe' : 'No se pudo actualizar la cuenta';
+    return NextResponse.json({ error: message }, { status: error.code === '23505' ? 400 : 500 });
   }
 
   return NextResponse.json({ ok: true });

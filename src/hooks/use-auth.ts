@@ -19,6 +19,7 @@ interface SessionHint {
   role: string;
   displayName: string;
   restaurantId: string | null;
+  mustChangePassword: boolean;
 }
 
 function saveSessionHint(hint: SessionHint) {
@@ -81,6 +82,7 @@ interface UseAuthDeps {
 export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
   const [isAuthLoaded, setIsAuthLoaded] = useState<boolean>(false);
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingActionUser, setPendingActionUser] = useState<StaffUser | null>(null);
   const pinResolverRef = useRef<((user: StaffUser | null) => void) | null>(null);
@@ -102,7 +104,10 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
       localStorage.setItem('eterra_system_build_version', SYSTEM_BUILD_VERSION);
     } else {
       const hint = readSessionHint();
-      if (hint) setCurrentUser(hintToStaffUser(hint));
+      if (hint) {
+        setCurrentUser(hintToStaffUser(hint));
+        setMustChangePassword(Boolean(hint.mustChangePassword));
+      }
     }
     setIsAuthLoaded(true);
 
@@ -114,13 +119,16 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
             accountId: data.accountId,
             role: data.role,
             displayName: data.displayName,
-            restaurantId: data.restaurantId
+            restaurantId: data.restaurantId,
+            mustChangePassword: Boolean(data.mustChangePassword)
           };
           saveSessionHint(hint);
           setCurrentUser(hintToStaffUser(hint));
+          setMustChangePassword(hint.mustChangePassword);
         } else {
           clearSessionHint();
           setCurrentUser(null);
+          setMustChangePassword(false);
         }
       })
       .catch(() => {});
@@ -137,8 +145,11 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
       if (!data.authenticated) {
         clearSessionHint();
         setCurrentUser(null);
+        setMustChangePassword(false);
         sounds.playAlert();
         showToast('warning', 'La sesión ha sido cerrada en todos los dispositivos por una actualización de seguridad del Administrador.', 'Cierre de Sesión Global');
+      } else {
+        setMustChangePassword(Boolean(data.mustChangePassword));
       }
     } catch {}
   }, [showToast]);
@@ -162,13 +173,19 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
         accountId: data.accountId,
         role: data.role,
         displayName: data.displayName,
-        restaurantId: data.restaurantId
+        restaurantId: data.restaurantId,
+        mustChangePassword: Boolean(data.mustChangePassword)
       };
       saveSessionHint(hint);
       setCurrentUser(hintToStaffUser(hint));
+      setMustChangePassword(hint.mustChangePassword);
       setIsPinModalOpen(false);
       sounds.playClick();
-      showToast('success', `Bienvenido, ${hint.displayName}.`, 'Acceso Autorizado');
+      if (hint.mustChangePassword) {
+        showToast('warning', 'Por seguridad, define tus credenciales definitivas antes de continuar.', 'Configuración Requerida');
+      } else {
+        showToast('success', `Bienvenido, ${hint.displayName}.`, 'Acceso Autorizado');
+      }
       addAuditLog('system_action', `Inicio de sesión: ${hint.displayName} (${hint.role})`);
       return true;
     } catch {
@@ -200,6 +217,43 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
     }
   };
 
+  // Configuración obligatoria de cuenta (dispara cuando mustChangePassword es
+  // true tras el login): fija credenciales definitivas y desactiva la
+  // provisional para siempre. Ver docs/decisions/0005-forced-account-setup.md.
+  const completeAccountSetup = async (payload: {
+    currentPassword: string;
+    newPassword: string;
+    newUsername?: string;
+    email?: string;
+  }): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/complete-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        sounds.playAlert();
+        return { ok: false, error: data.error || 'No se pudo guardar la configuración' };
+      }
+
+      setMustChangePassword(false);
+      const hint = readSessionHint();
+      if (hint) {
+        const updatedHint: SessionHint = { ...hint, mustChangePassword: false };
+        saveSessionHint(updatedHint);
+        setCurrentUser(hintToStaffUser(updatedHint));
+      }
+      sounds.playClick();
+      showToast('success', 'Tus credenciales definitivas quedaron guardadas. Se cerró la sesión en los demás dispositivos.', 'Cuenta Configurada');
+      addAuditLog('system_action', 'Configuración obligatoria de cuenta completada (contraseña provisional desactivada)');
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'Error de conexión. Intenta nuevamente.' };
+    }
+  };
+
   const forceLogoutAllDevices = async (): Promise<void> => {
     try {
       await fetch('/api/auth/logout', {
@@ -210,6 +264,7 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
     } catch {}
     clearSessionHint();
     setCurrentUser(null);
+    setMustChangePassword(false);
     sounds.playAlert();
     showToast('warning', 'Se ha cerrado la sesión en todos los dispositivos conectados por protocolo de super seguridad.', 'Seguridad Global');
   };
@@ -259,6 +314,7 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
 
   const logoutStaff = () => {
     setCurrentUser(null);
+    setMustChangePassword(false);
     clearSessionHint();
     fetch('/api/auth/logout', {
       method: 'POST',
@@ -308,6 +364,8 @@ export function useAuth({ staff, showToast, addAuditLog }: UseAuthDeps) {
   return {
     currentUser,
     isAuthLoaded,
+    mustChangePassword,
+    completeAccountSetup,
     login,
     updateOwnerPassword,
     switchUser,

@@ -65,6 +65,13 @@ interface RestaurantContextType {
   staff: StaffUser[];
   currentUser: StaffUser | null;
   isAuthLoaded: boolean;
+  mustChangePassword: boolean;
+  completeAccountSetup: (payload: {
+    currentPassword: string;
+    newPassword: string;
+    newUsername?: string;
+    email?: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
   login: (username: string, password: string) => Promise<boolean>;
   updateOwnerPassword: (currentPass: string, newPass: string) => Promise<boolean>;
   switchUser: (user: StaffUser) => void;

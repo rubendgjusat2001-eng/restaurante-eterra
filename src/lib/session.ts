@@ -10,6 +10,7 @@ export interface SessionClaims {
   displayName: string;
   restaurantId: string | null;
   authVersion: number;
+  mustChangePassword: boolean;
 }
 
 function getSecretKey(): Uint8Array {

@@ -42,7 +42,8 @@ src/
     page.tsx                 → Portal público (home)
     sistema/                 → ERP interno (protegido por sesión)
     api/auth/*                → Rutas de servidor: login, identify, logout, me,
-                                 change-password, set-staff-pin, accounts
+                                 change-password, complete-setup, set-staff-pin,
+                                 accounts
     api/system/time            → Reloj de confianza del servidor
   components/
     public/                  → Componentes de la web de clientes
@@ -108,6 +109,13 @@ Sesión: cookie httpOnly `eterra_session` (JWT, 15 min, se renueva mientras hay
 actividad). Un "hint" sin secretos se espeja en `localStorage`/`sessionStorage`
 solo para hidratar la UI sin parpadeo — la cookie es la única autoridad real,
 todo se revalida contra `GET /api/auth/me`.
+
+**Configuración obligatoria de cuenta:** ninguna cuenta puede quedarse
+indefinidamente con una contraseña provisional/de fábrica. `access_accounts.
+must_change_password` fuerza, en el próximo login, la pantalla
+`AccountSetupScreen.tsx` (bloquea el ERP hasta definir contraseña definitiva,
+usuario y email) antes de dejar pasar a `/sistema` — ver
+`docs/decisions/0005-forced-account-setup.md`.
 
 ## 5. Seguridad de la base de datos (RLS)
 
