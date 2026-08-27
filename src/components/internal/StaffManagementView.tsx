@@ -184,6 +184,7 @@ export function StaffManagementView() {
                 onChange={e => setNewStaffRole(e.target.value as UserRole)}
                 className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               >
+                <option value="owner">Dueño / Propietario</option>
                 <option value="waiter">Mozo de Salón</option>
                 <option value="cashier">Cajero</option>
                 <option value="kitchen">Cocinero (KDS Cocina)</option>
