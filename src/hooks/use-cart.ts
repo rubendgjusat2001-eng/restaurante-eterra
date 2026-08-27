@@ -17,17 +17,17 @@ export interface CartItem {
 
 interface UseCartDeps {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+  persistOrderToCloud: (order: Order) => Promise<void>;
   showToast: (type: ToastMessage['type'], message: string, title?: string) => void;
 }
 
 /**
- * Carrito público y pedidos online. Extraído tal cual estaba en
- * RestaurantContext.tsx (Fase 2a: reorganización, sin cambiar comportamiento)
- * — `submitOnlineOrder` **todavía no persiste el pedido en Supabase**
- * (inconsistente con el resto de comandas). Arreglarlo es el primer punto de
- * Fase 2b (ver el plan y CLAUDE.md §6), NO se hace en este paso.
+ * Carrito público y pedidos online. `submitOnlineOrder` persiste el pedido en
+ * Supabase igual que el resto de comandas (Fase C, 2026-08-27) — antes solo
+ * quedaba en memoria del navegador del cliente y se perdía al recargar,
+ * inconsistente con `use-checkout.ts`/`use-table-lifecycle.ts`.
  */
-export function useCart({ setOrders, showToast }: UseCartDeps) {
+export function useCart({ setOrders, persistOrderToCloud, showToast }: UseCartDeps) {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const addToCart = (menuItem: MenuItem, quantity: number, selectedModifiers: any[] = [], notes?: string) => {
@@ -132,6 +132,7 @@ export function useCart({ setOrders, showToast }: UseCartDeps) {
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    persistOrderToCloud(newOrder);
     clearCart();
     sounds.playKitchenBell();
     showToast('success', `¡Pedido online ${newOrder.code} recibido y enviado a cocina!`, 'ÉTERRA Online');

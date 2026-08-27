@@ -259,6 +259,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const reservationsApi = useReservations({ showToast: toastsApi.showToast });
   const cartApi = useCart({
     setOrders: ordersApi.setOrders,
+    persistOrderToCloud: ordersApi.persistOrderToCloud,
     showToast: toastsApi.showToast
   });
 
