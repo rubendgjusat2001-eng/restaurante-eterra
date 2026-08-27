@@ -56,12 +56,17 @@ src/
                                  ver sección 6 y docs/decisions/0004.
   hooks/                     → Un hook de React por dominio (estado + efectos +
                                  su propia suscripción en tiempo real si aplica):
-                                 use-auth, use-staff, use-menu, use-tables,
+                                 use-auth, use-staff, use-staff-positions
+                                 (Cargos), use-menu, use-tables, use-zones,
                                  use-orders, use-table-lifecycle (orquestador:
                                  abrir/mudar mesa), use-checkout (orquestador:
-                                 cobrar mesa), use-cash-shifts, use-reservations,
-                                 use-cart, use-audit-log, use-toasts,
-                                 use-restaurant-profile.
+                                 cobrar mesa), use-cash-shifts, use-permissions
+                                 (Roles), use-warehouse (Almacén),
+                                 use-reservations, use-cart, use-audit-log,
+                                 use-toasts, use-restaurant-profile. Todos los
+                                 que leen/suscriben a Supabase (no los que solo
+                                 escriben) reciben `isPrivateRoute` — ver
+                                 docs/decisions/0006.
   services/                  → Acceso a datos de cada dominio (llamadas a
                                  Supabase). Sigue siendo la anon key desde el
                                  navegador — NO es la "capa de servicios" de
@@ -157,20 +162,27 @@ ya corregido.
    marcador, no una identificación real).
 5. **Cero pruebas automatizadas.** Cada cambio se verifica manualmente
    (`npm run build` + navegador) — ver sección 8.
-6. **Sin code-splitting** — las 7 vistas del ERP + modales pesados cargan en
-   un solo bundle sin importar la sección activa.
-7. **Caja/turnos, reservas, carrito público (pedidos online) y auditoría NO se
-   guardan en Supabase** — viven solo en memoria del navegador, se pierden al
-   recargar. La tabla `cash_shifts` ya existe pero el código nunca la usa;
-   `reservations`/`audit_logs` ni siquiera tienen tabla todavía. Primer punto
-   de Fase 2b (ver `src/hooks/use-cash-shifts.ts`, `use-reservations.ts`,
-   `use-cart.ts`, `use-audit-log.ts` para el detalle exacto de qué falta).
-8. **`submitOnlineOrder` no persiste el pedido en la nube** — inconsistente
-   con el resto de comandas (que sí se guardan vía `persistOrderToCloud`).
-   Es el arreglo más simple y urgente de la Fase 2b.
+6. **Sin code-splitting** — las 7+ vistas del ERP + modales pesados cargan en
+   un solo bundle sin importar la sección activa. Sigue pendiente.
+7. ~~Caja/turnos, reservas, carrito público y auditoría NO se guardan en
+   Supabase~~ — **resuelto en las Fases F e I** (2026-08-27): las 4 tablas
+   persisten de verdad con el patrón fetch+realtime+persist estándar del
+   proyecto. Ver `docs/decisions/0009` y `0012`.
+8. ~~`submitOnlineOrder` no persiste el pedido en la nube~~ — **resuelto en la
+   Fase C** (2026-08-27).
+9. **Permisos de Roles: enforcement parcial a propósito** — la Fase G
+   construyó la matriz completa y configurable, pero solo se aplicó a la
+   visibilidad de la navegación (`SidebarDrawer.tsx`). Las ~15 verificaciones
+   `role === 'owner'` en rutas de servidor y botones de editar/eliminar
+   siguen igual que antes (ya eran correctas) — migrarlas a `canEdit`/
+   `canDelete` es un paso aparte, pendiente, para hacerlo con el dueño
+   presente probando cada cambio antes de subirlo. Ver `docs/decisions/0010`.
+10. **Almacén (Fase H) es un MVP** — no descuenta insumos automáticamente al
+    vender un plato (sin recetas/BOM todavía) ni soporta multi-sede. Ver
+    `docs/decisions/0011`.
 
-No "arregles" estos puntos de pasada dentro de una tarea distinta — son Fase 2,
-se abordan aparte y con verificación completa.
+No "arregles" estos puntos de pasada dentro de una tarea distinta — se
+abordan aparte y con verificación completa.
 
 ## 7. Qué NO tocar sin preguntar al dueño primero
 
@@ -223,3 +235,72 @@ se abordan aparte y con verificación completa.
 - **Fase 3 (Portal de pagos para clientes): planificada, no iniciada** —
   subdominio separado, pasarela Culqi, sincronización en tiempo real con el
   ERP.
+- **Endurecimiento de credenciales (dentro de Fase 2c): completa y
+  verificada** (2026-08-26) — `must_change_password` fuerza configuración
+  obligatoria en el primer login (`AccountSetupScreen.tsx`), se unificaron
+  `/sistema` y `/sistema/[section]` en un solo componente compartido
+  (`SistemaApp.tsx`) para que no puedan volver a desincronizarse. Ver
+  `docs/decisions/0005-forced-account-setup.md`. Verificado en producción real
+  (no solo local).
+- **Infraestructura de Vercel: consolidada** (2026-08-26) — existían 6
+  proyectos de Vercel duplicados conectados al mismo repositorio (restos de
+  configuraciones anteriores); se redujeron a uno solo (`restaurante-eterra`).
+  Ver `[[vercel-single-project]]` en la memoria del asistente y la sección 11
+  de este documento — nunca crear un proyecto de Vercel nuevo para este repo
+  sin revisar primero si ya existe.
+- **Fases B a I (mesas/zonas, personal/Cargos, caja, permisos, almacén,
+  reservas/auditoría): código completo, compilado limpio, subido a
+  producción** (2026-08-27) — **pero las migraciones SQL 008 a 013 todavía no
+  se corrieron en Supabase** (el dueño no estaba disponible esa madrugada).
+  Hasta que se corran, en orden, estas funciones se comportan de forma
+  degradada-pero-segura (no rompen nada, solo aparecen vacías/inactivas):
+  zonas configurables, expediente de personal + Cargos + gastos, caja
+  persistente + una sola caja abierta + reporte por turno, matriz de
+  Permisos de Roles, Almacén, y reservas/auditoría en la nube. Ver
+  `docs/decisions/0007` a `0012` para el detalle de cada una, y correr las
+  migraciones en el SQL Editor de Supabase en orden numérico antes de dar
+  por probada cualquiera de estas pantallas en el navegador.
+
+## 11. Configuración inicial de infraestructura/servicios externos → delegar a Antigravity
+
+Esta sección aplica específicamente cuando el dueño necesita **configurar algo
+de cero, o reconfigurar una conexión externa** — Vercel, dominios, un
+proveedor de pagos, correo transaccional, o cualquier servicio parecido que
+no sea el código ni la base de datos del proyecto. NO aplica a tareas
+normales de desarrollo dentro del código (esas las hace Claude Code
+directamente, sin desviar a otra herramienta).
+
+Claude Code tiene prohibido, sin excepción, escribir contraseñas, claves API
+o tokens en cualquier formulario — ni siquiera si el dueño lo autoriza
+explícitamente — y no tiene ninguna integración conectada a estos servicios
+externos (Vercel, registradores de dominio, pasarelas de pago, etc.). Por
+eso, para este tipo específico de configuración, la forma de trabajar es:
+Antigravity IDE se conecta al servicio externo usando una clave de acceso
+momentánea (un token que el dueño genera ahí mismo para esa tarea puntual, y
+que después de usarse se revoca — nunca queda como una conexión permanente),
+hace el ajuste, y listo. Claude Code sigue siendo quien decide **qué** hay
+que configurar y por qué, pero Antigravity es quien ejecuta la conexión.
+
+Entonces, apenas se detecte que la tarea requiere esto, **la recomendación
+por defecto es pedirle a Antigravity que lo haga, no guiar al dueño clic por
+clic en el panel del servicio** (Vercel, etc.) — esa vía manual es lenta,
+propensa a errores de la propia interfaz (ya pasó con un botón "Save" que no
+guardaba), y de todas formas Claude Code no puede escribir la clave por él.
+Hay que entregar de inmediato un prompt listo para copiar y pegar en
+Antigravity, sin que el dueño tenga que pedirlo aparte ni que Claude Code
+intente primero el camino manual.
+
+Ese prompt debe, siempre:
+- Explicar el contexto exacto: qué se intentó desde Claude Code, qué falta,
+  y por qué.
+- Dejar explícito que Antigravity **NO debe tocar código, base de datos, ni
+  Git** — el equipo de Claude Code ya está trabajando ahí activamente; su
+  alcance es únicamente la acción externa puntual (ej. Vercel).
+- Pedir que Antigravity **no muestre tokens ni claves en su respuesta
+  final**, solo un resumen de lo que hizo (esto ya falló dos veces el
+  2026-08-26 — un token de Vercel quedó expuesto en el chat cada vez).
+- Pedir confirmación explícita antes de cualquier acción destructiva o
+  irreversible (borrar proyectos, dominios, etc.).
+- Indicar que lea los valores sensibles (URLs, claves) directamente de
+  `.env.local` en la raíz del proyecto en vez de que el dueño los reescriba a
+  mano — así ninguna clave pasa por texto de por medio.
