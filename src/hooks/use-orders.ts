@@ -9,6 +9,8 @@ import { ToastMessage } from './use-toasts';
 import * as ordersService from '@/services/orders.service';
 
 interface UseOrdersDeps {
+  /** true solo dentro de /sistema/* — ver RestaurantContext.tsx. */
+  isPrivateRoute: boolean;
   showToast: (type: ToastMessage['type'], message: string, title?: string) => void;
   addAuditLog: (action: 'dish_cancelled', description: string, metadata?: Record<string, any>) => void;
 }
@@ -18,7 +20,7 @@ interface UseOrdersDeps {
  * reorganización, sin cambiar comportamiento). `createOrderForTable`
  * (que también toca Mesas) vive en `use-table-lifecycle.ts`, no aquí.
  */
-export function useOrders({ showToast, addAuditLog }: UseOrdersDeps) {
+export function useOrders({ isPrivateRoute, showToast, addAuditLog }: UseOrdersDeps) {
   const [orders, setOrders] = useState<Order[]>(() => []);
 
   const persistOrderToCloud = useCallback(async (order: Order) => {
@@ -26,12 +28,12 @@ export function useOrders({ showToast, addAuditLog }: UseOrdersDeps) {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
     ordersService.fetchOrders().then(mapped => setOrders(mapped));
-  }, []);
+  }, [isPrivateRoute]);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
 
     const ordersChannel = supabase
       .channel('realtime_orders_channel')
@@ -91,7 +93,7 @@ export function useOrders({ showToast, addAuditLog }: UseOrdersDeps) {
     return () => {
       supabase?.removeChannel(ordersChannel);
     };
-  }, []);
+  }, [isPrivateRoute]);
 
   const updateOrderItemStatus = (orderId: string, itemId: string, status: OrderItemStatus) => {
     let updatedTargetOrder: Order | null = null;

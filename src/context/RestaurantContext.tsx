@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useRef, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   RestaurantInfo,
   ThemeColors,
@@ -182,10 +183,21 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   // tenga que llamar a otro hook directamente.
   const currentUserRef = useRef<StaffUser | null>(null);
 
+  // El portal público (/) y el ERP (/sistema/*) comparten este mismo
+  // Provider (montado una vez en layout.tsx). Los dominios operativos del
+  // ERP (mesas, pedidos, personal) no necesitan cargar datos ni abrir canales
+  // Realtime cuando un visitante anónimo está solo viendo el menú público —
+  // isPrivateRoute se pasa a esos hooks para que omitan su fetch inicial y su
+  // suscripción mientras la ruta no empiece con /sistema. Ver
+  // docs/decisions/0006-public-route-realtime-scoping.md.
+  const pathname = usePathname();
+  const isPrivateRoute = pathname?.startsWith('/sistema') ?? false;
+
   const toastsApi = useToasts();
   const auditApi = useAuditLog(currentUserRef);
   const staffApi = useStaff({
     currentUserRef,
+    isPrivateRoute,
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
@@ -208,10 +220,12 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     addAuditLog: auditApi.addAuditLog
   });
   const tablesApi = useTables({
+    isPrivateRoute,
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
   const ordersApi = useOrders({
+    isPrivateRoute,
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });

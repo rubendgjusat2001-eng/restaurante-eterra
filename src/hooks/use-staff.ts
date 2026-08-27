@@ -16,6 +16,8 @@ interface UseStaffDeps {
    * ref roto ese ciclo sin que un hook llame a otro directamente.
    */
   currentUserRef: RefObject<StaffUser | null>;
+  /** true solo dentro de /sistema/* — ver RestaurantContext.tsx. */
+  isPrivateRoute: boolean;
   showToast: (type: ToastMessage['type'], message: string, title?: string) => void;
   addAuditLog: (action: 'system_action', description: string) => void;
 }
@@ -27,18 +29,18 @@ interface UseStaffDeps {
  * la misma tabla dos veces en el archivo original (simplificación pura, sin
  * cambio de comportamiento).
  */
-export function useStaff({ currentUserRef, showToast, addAuditLog }: UseStaffDeps) {
+export function useStaff({ currentUserRef, isPrivateRoute, showToast, addAuditLog }: UseStaffDeps) {
   const [staff, setStaff] = useState<StaffUser[]>(() => STAFF_MEMBERS);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
     staffService.fetchStaff().then(mapped => {
       if (mapped.length > 0) setStaff(mapped);
     });
-  }, []);
+  }, [isPrivateRoute]);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
 
     const staffChannel = supabase
       .channel('realtime_staff_channel')
@@ -78,7 +80,7 @@ export function useStaff({ currentUserRef, showToast, addAuditLog }: UseStaffDep
     return () => {
       supabase?.removeChannel(staffChannel);
     };
-  }, []);
+  }, [isPrivateRoute]);
 
   const addStaffUser = (newUser: { name: string; role: UserRole; pin: string; avatar?: string }) => {
     const created: StaffUser = {

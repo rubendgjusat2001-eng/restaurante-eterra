@@ -8,6 +8,8 @@ import { ToastMessage } from './use-toasts';
 import * as tablesService from '@/services/tables.service';
 
 interface UseTablesDeps {
+  /** true solo dentro de /sistema/* — ver RestaurantContext.tsx. */
+  isPrivateRoute: boolean;
   showToast: (type: ToastMessage['type'], message: string, title?: string) => void;
   addAuditLog: (action: 'system_action', description: string) => void;
 }
@@ -17,7 +19,7 @@ interface UseTablesDeps {
  * reorganización, sin cambiar comportamiento). `openTable`/`transferTable`
  * (que también tocan Pedidos) viven en `use-table-lifecycle.ts`, no aquí.
  */
-export function useTables({ showToast, addAuditLog }: UseTablesDeps) {
+export function useTables({ isPrivateRoute, showToast, addAuditLog }: UseTablesDeps) {
   const [tables, setTables] = useState<Table[]>(() => []);
   const [activeZone, setActiveZone] = useState<string>('all');
 
@@ -32,12 +34,12 @@ export function useTables({ showToast, addAuditLog }: UseTablesDeps) {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
     tablesService.fetchTables().then(mapped => setTables(mapped));
-  }, []);
+  }, [isPrivateRoute]);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    if (!supabase || !isSupabaseConfigured || !isPrivateRoute) return;
 
     const tablesChannel = supabase
       .channel('realtime_tables_channel')
@@ -87,7 +89,7 @@ export function useTables({ showToast, addAuditLog }: UseTablesDeps) {
     return () => {
       supabase?.removeChannel(tablesChannel);
     };
-  }, []);
+  }, [isPrivateRoute]);
 
   const requestTableBill = (tableId: string) => {
     const table = tables.find(t => t.id === tableId);
