@@ -18,6 +18,34 @@ export interface StaffUser {
   avatar: string;
   color: string;
   active: boolean;
+  // Expediente (Fase E) — todos opcionales, el Cargo es informativo/RRHH y
+  // NO otorga permisos (eso lo hace `role`, la función operativa).
+  positionId?: string;
+  positionName?: string;
+  phone?: string;
+  documentId?: string;
+  email?: string;
+  hireDate?: string;
+  address?: string;
+  notes?: string;
+}
+
+export interface StaffPosition {
+  id: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+}
+
+export interface StaffExpense {
+  id: string;
+  staffId: string;
+  concept: string;
+  amount: number;
+  expenseDate: string;
+  createdBy?: string;
+  notes?: string;
+  createdAt: string;
 }
 
 export type GastroThemePreset = 

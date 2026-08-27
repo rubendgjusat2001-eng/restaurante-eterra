@@ -28,6 +28,7 @@ import { syncServerTime } from '@/lib/server-time';
 import { useToasts, ToastMessage } from '@/hooks/use-toasts';
 import { useAuditLog } from '@/hooks/use-audit-log';
 import { useStaff } from '@/hooks/use-staff';
+import { useStaffPositions } from '@/hooks/use-staff-positions';
 import { useAuth } from '@/hooks/use-auth';
 import { useRestaurantProfile } from '@/hooks/use-restaurant-profile';
 import { useMenu } from '@/hooks/use-menu';
@@ -81,6 +82,19 @@ interface RestaurantContextType {
   addStaffUser: (user: { name: string; role: UserRole; pin: string; avatar?: string }) => void;
   deleteStaffUser: (userId: string) => void;
   updateUserPin: (userId: string, newPin: string) => void;
+  updateStaffProfile: (staffId: string, updates: {
+    name?: string;
+    positionId?: string | null;
+    phone?: string;
+    documentId?: string;
+    email?: string;
+    hireDate?: string;
+    address?: string;
+    notes?: string;
+  }) => void;
+  positions: { id: string; name: string; description?: string; sortOrder: number }[];
+  addPosition: (name: string, description?: string) => Promise<{ id: string; name: string; description?: string; sortOrder: number } | null>;
+  removePosition: (id: string) => Promise<void>;
   verifyStaffPin: (staffId: string, pin: string) => Promise<StaffUser | null>;
   requestStaffIdentity: (preselect?: StaffUser | null) => Promise<StaffUser | null>;
   resolveStaffIdentity: (result: StaffUser | null) => void;
@@ -208,6 +222,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     showToast: toastsApi.showToast,
     addAuditLog: auditApi.addAuditLog
   });
+  const staffPositionsApi = useStaffPositions({ isPrivateRoute });
   const authApi = useAuth({
     staff: staffApi.staff,
     showToast: toastsApi.showToast,
@@ -334,6 +349,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const value: RestaurantContextType = {
     ...restaurantProfileApi,
     ...staffApi,
+    ...staffPositionsApi,
     ...authApi,
     purgeAllDataToZero,
     resetToDemoData,

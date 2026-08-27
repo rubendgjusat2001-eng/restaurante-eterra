@@ -3,18 +3,20 @@
 import React, { useState } from 'react';
 import { useRestaurant } from '@/context/RestaurantContext';
 import { StaffUser, UserRole } from '@/types/restaurant';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Trash2, 
-  KeyRound, 
-  ChevronRight, 
-  X, 
-  Filter 
+import {
+  Users,
+  Search,
+  Plus,
+  Trash2,
+  ChevronRight,
+  X,
+  Filter,
+  FolderOpen,
+  Briefcase
 } from 'lucide-react';
 import { sounds } from '@/lib/utils';
 import { AccessAccountsPanel } from './AccessAccountsPanel';
+import { StaffDetailModal } from './StaffDetailModal';
 
 export function StaffManagementView() {
   const {
@@ -22,11 +24,16 @@ export function StaffManagementView() {
     currentThemeColors,
     addStaffUser,
     deleteStaffUser,
-    updateUserPin,
-    showToast
+    showToast,
+    positions,
+    addPosition,
+    removePosition
   } = useRestaurant();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'roles' | 'shifts'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'accounts' | 'cargos' | 'roles' | 'shifts'>('users');
+  const [staffInDetail, setStaffInDetail] = useState<StaffUser | null>(null);
+  const [newPositionName, setNewPositionName] = useState('');
+  const [newPositionDescription, setNewPositionDescription] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -61,6 +68,27 @@ export function StaffManagementView() {
     setNewStaffPin('');
     setIsAddFormOpen(false);
     sounds.playClick();
+  };
+
+  const handleAddPosition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPositionName.trim()) return;
+    const created = await addPosition(newPositionName.trim(), newPositionDescription.trim());
+    if (created) {
+      setNewPositionName('');
+      setNewPositionDescription('');
+      sounds.playClick();
+      showToast('success', `Cargo "${created.name}" creado`);
+    } else {
+      showToast('error', 'No se pudo crear el cargo');
+    }
+  };
+
+  const handleDeletePosition = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar el cargo "${name}"? El personal que lo tenga asignado quedará "sin asignar".`)) return;
+    await removePosition(id);
+    sounds.playClick();
+    showToast('info', `Cargo "${name}" eliminado`);
   };
 
   // Filtrado de usuarios
@@ -112,6 +140,7 @@ export function StaffManagementView() {
         {[
           { id: 'users', label: `Personal (${staff.length})` },
           { id: 'accounts', label: 'Cuentas de Acceso' },
+          { id: 'cargos', label: `Cargos (${positions.length})` },
           { id: 'roles', label: 'Permisos de Roles' },
           { id: 'shifts', label: 'Horarios de Turno' },
         ].map(tab => {
@@ -135,6 +164,74 @@ export function StaffManagementView() {
 
       {activeTab === 'accounts' ? (
         <AccessAccountsPanel />
+      ) : activeTab === 'cargos' ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6 max-w-2xl animate-in fade-in">
+          <div>
+            <h3 className="text-base font-black text-slate-900">Cargos del Personal</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Catálogo de puestos de trabajo (ej. "Mesero Senior", "Ayudante de Cocina"). Es solo informativo —
+              no otorga permisos ni cambia lo que un colaborador puede hacer en el sistema.
+            </p>
+          </div>
+
+          <form onSubmit={handleAddPosition} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input
+              type="text"
+              placeholder="Nombre del cargo"
+              value={newPositionName}
+              onChange={e => setNewPositionName(e.target.value)}
+              className="sm:col-span-1 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
+            />
+            <input
+              type="text"
+              placeholder="Descripción (opcional)"
+              value={newPositionDescription}
+              onChange={e => setNewPositionDescription(e.target.value)}
+              className="sm:col-span-1 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-400"
+            />
+            <button
+              type="submit"
+              style={{ backgroundColor: primaryColor }}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs cursor-pointer hover:opacity-90"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Agregar Cargo</span>
+            </button>
+          </form>
+
+          <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+            {positions.length === 0 ? (
+              <p className="text-center py-8 text-xs text-slate-400">No hay cargos configurados todavía</p>
+            ) : (
+              positions.map(position => {
+                const count = staff.filter(s => s.positionId === position.id).length;
+                return (
+                  <div key={position.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/80">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900">{position.name}</span>
+                        {position.description && (
+                          <span className="text-[10px] text-slate-400 block">{position.description}</span>
+                        )}
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-mono font-bold ml-2">
+                        {count} {count === 1 ? 'persona' : 'personas'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeletePosition(position.id, position.name)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                      title="Eliminar cargo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       ) : (
       <>
       {/* 3. Título de Sección + Botón de Acción Principal */}
@@ -354,18 +451,11 @@ export function StaffManagementView() {
                       <td className="py-4 px-4 sm:px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => {
-                              const newPin = prompt(`Ingrese el nuevo PIN de 4 dígitos para ${member.name}:`);
-                              if (newPin && newPin.trim().length === 4) {
-                                updateUserPin(member.id, newPin.trim());
-                              } else if (newPin) {
-                                showToast('error', 'El PIN debe tener exactamente 4 dígitos numéricos');
-                              }
-                            }}
+                            onClick={() => setStaffInDetail(member)}
                             className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                            title="Cambiar PIN de Acceso"
+                            title="Ver expediente (datos, cargo, PIN, gastos)"
                           >
-                            <KeyRound className="w-4 h-4" />
+                            <FolderOpen className="w-4 h-4" />
                           </button>
 
                           {!isOwner && (
@@ -389,6 +479,10 @@ export function StaffManagementView() {
         </div>
       </div>
       </>
+      )}
+
+      {staffInDetail && (
+        <StaffDetailModal staff={staffInDetail} onClose={() => setStaffInDetail(null)} />
       )}
 
     </div>

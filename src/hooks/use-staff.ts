@@ -69,7 +69,19 @@ export function useStaff({ currentUserRef, isPrivateRoute, showToast, addAuditLo
               active: true
             }]);
           } else if (payload.eventType === 'UPDATE' && nu) {
-            setStaff(prev => prev.map(u => u.id === nu.id ? { ...u, name: nu.name, role: nu.role, avatar: nu.avatar || u.avatar } : u));
+            setStaff(prev => prev.map(u => u.id === nu.id ? {
+              ...u,
+              name: nu.name,
+              role: nu.role,
+              avatar: nu.avatar || u.avatar,
+              positionId: nu.position_id ?? undefined,
+              phone: nu.phone ?? undefined,
+              documentId: nu.document_id ?? undefined,
+              email: nu.email ?? undefined,
+              hireDate: nu.hire_date ?? undefined,
+              address: nu.address ?? undefined,
+              notes: nu.notes ?? undefined
+            } : u));
           } else if (payload.eventType === 'DELETE' && ou) {
             setStaff(prev => prev.filter(u => u.id !== ou.id));
           }
@@ -133,5 +145,31 @@ export function useStaff({ currentUserRef, isPrivateRoute, showToast, addAuditLo
       .catch(() => showToast('error', 'Error de conexión al actualizar el PIN'));
   };
 
-  return { staff, setStaff, addStaffUser, deleteStaffUser, updateUserPin };
+  // Expediente de personal (Fase E) — nunca toca PIN ni el rol operativo.
+  const updateStaffProfile = (staffId: string, updates: {
+    name?: string;
+    positionId?: string | null;
+    phone?: string;
+    documentId?: string;
+    email?: string;
+    hireDate?: string;
+    address?: string;
+    notes?: string;
+  }) => {
+    setStaff(prev => prev.map(u => u.id === staffId ? {
+      ...u,
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.positionId !== undefined ? { positionId: updates.positionId ?? undefined } : {}),
+      ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+      ...(updates.documentId !== undefined ? { documentId: updates.documentId } : {}),
+      ...(updates.email !== undefined ? { email: updates.email } : {}),
+      ...(updates.hireDate !== undefined ? { hireDate: updates.hireDate } : {}),
+      ...(updates.address !== undefined ? { address: updates.address } : {}),
+      ...(updates.notes !== undefined ? { notes: updates.notes } : {})
+    } : u));
+    staffService.updateStaffProfile(staffId, updates);
+    showToast('success', 'Expediente actualizado');
+  };
+
+  return { staff, setStaff, addStaffUser, deleteStaffUser, updateUserPin, updateStaffProfile };
 }
