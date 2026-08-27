@@ -234,7 +234,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
   const isPrivateRoute = pathname?.startsWith('/sistema') ?? false;
 
   const toastsApi = useToasts();
-  const auditApi = useAuditLog(currentUserRef);
+  const auditApi = useAuditLog({ currentUserRef, isPrivateRoute });
   const staffApi = useStaff({
     currentUserRef,
     isPrivateRoute,
@@ -306,7 +306,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     setActiveShift: cashShiftsApi.setActiveShift,
     showToast: toastsApi.showToast
   });
-  const reservationsApi = useReservations({ showToast: toastsApi.showToast });
+  const reservationsApi = useReservations({ isPrivateRoute, showToast: toastsApi.showToast });
   const cartApi = useCart({
     setOrders: ordersApi.setOrders,
     persistOrderToCloud: ordersApi.persistOrderToCloud,
